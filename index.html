@@ -1701,7 +1701,6 @@
                             let subKey = cleanString(rawSub);
                             let rawDose = r.Doses !== undefined ? r.Doses : (r.DOSES !== undefined ? r.DOSES : (r.Dose !== undefined ? r.Dose : (r.DOSE !== undefined ? r.DOSE : (r.Recomendacao || r.Taxa))));
                             
-                            // DISTINÇÃO ESTRITA ENTRE CÉLULA NULA/VAZIA E CÉLULA COM ZERO
                             if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
                                 let doseVal = parseFloat(String(rawDose).replace(',', '.'));
                                 if (!isNaN(doseVal)) {
@@ -1723,7 +1722,6 @@
 
                         let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
 
-                        // Contabiliza área SOMENTE se houver valor preenchido no Excel (incluindo o zero 0)
                         if (doseObj && doseObj.hasValue) {
                             totalAreaCalculated += area;
                             totalProductAcc += (doseObj.dose * area);
@@ -1794,7 +1792,7 @@
             }
         }
 
-        // DESENHAR CANVAS DO LAUDO DA TAXA VARIÁVEL (PDF REFORMATADO SEM SOBREPOSIÇÃO DE NOMES)
+        // DESENHAR CANVAS DO LAUDO DA TAXA VARIÁVEL (LAYOUT PROFISSIONAL HARMONIZADO)
         function drawVRateCanvas(farmInfo, product, unit) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -1977,9 +1975,9 @@
             ctx.font = "bold 12px Helvetica, Arial";
             ctx.fillText(`Sem Aplicação (0 ${unitStr})`, legX + 38, currY);
 
-            // MONTAGEM DA TABELA (COM LARGURA E TEXTOS FORMATADOS SEM SOBREPOSIÇÃO)
+            // MONTAGEM DA TABELA RESUMO HARMONIZADA E PROFISSIONAL (DESIGN ÂMBAR PRO)
             const tblX = 1195, tblY = 120;
-            const tblW = 360;
+            const tblW = 365;
 
             let talhaoMap = {};
             vrateProcessedData.forEach(item => {
@@ -1995,19 +1993,19 @@
 
             const sortedTalhaoKeys = Object.keys(talhaoMap).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
 
-            // Cabeçalho Modelo Exato Formatado Sem Encaixe de Nomes
-            ctx.fillStyle = "#3A4F1D";
-            ctx.fillRect(tblX, tblY, tblW, 32);
+            // Cabeçalho Profissional em Âmbar Escuro
+            ctx.fillStyle = "#B45309";
+            ctx.fillRect(tblX, tblY, tblW, 34);
 
             ctx.fillStyle = "#FFFFFF";
             ctx.font = "bold 10px Helvetica, Arial";
             ctx.textAlign = "center";
-            ctx.fillText("Campo", tblX + 35, tblY + 20);
-            ctx.fillText("Área campo (ha)", tblX + 115, tblY + 20);
-            ctx.fillText(`Total ${product} (ton)`, tblX + 210, tblY + 20);
-            ctx.fillText("Dose média (kg/ha)", tblX + 305, tblY + 20);
+            ctx.fillText("Campo", tblX + 40, tblY + 21);
+            ctx.fillText("Área campo (ha)", tblX + 120, tblY + 21);
+            ctx.fillText(`Total ${product} (ton)`, tblX + 220, tblY + 21);
+            ctx.fillText("Dose média (kg/ha)", tblX + 315, tblY + 21);
 
-            let tY = tblY + 32;
+            let tY = tblY + 34;
             let sumArea = 0, sumProd = 0;
 
             sortedTalhaoKeys.forEach((tKey, idx) => {
@@ -2020,32 +2018,41 @@
                 sumArea += data.area;
                 sumProd += data.totalProd;
 
-                ctx.fillStyle = idx % 2 === 0 ? "#EBF1E4" : "#DFE7D6";
+                // Alternância Zebrada Suave
+                ctx.fillStyle = idx % 2 === 0 ? "#FFFFFF" : "#FEF3C7";
                 ctx.fillRect(tblX, tY, tblW, 20);
+
+                // Bordas Sutis
+                ctx.strokeStyle = "#F3F4F6";
+                ctx.lineWidth = 0.8;
+                ctx.strokeRect(tblX, tY, tblW, 20);
 
                 ctx.fillStyle = "#1E293B";
                 ctx.font = "10px Helvetica, Arial";
-                ctx.fillText(tKey, tblX + 35, tY + 14);
-                ctx.fillText(`${Math.round(data.area)}`, tblX + 115, tY + 14);
-                ctx.fillText(`${Math.round(prodTon)}`, tblX + 210, tY + 14);
-                ctx.fillText(`${Math.round(avgDose)}`, tblX + 305, tY + 14);
+                ctx.fillText(tKey, tblX + 40, tY + 14);
+                ctx.fillText(`${Math.round(data.area)}`, tblX + 120, tY + 14);
+                ctx.fillText(`${format1Decimal(prodTon)}`, tblX + 220, tY + 14);
+                ctx.fillText(`${Math.round(avgDose)}`, tblX + 315, tY + 14);
 
                 tY += 20;
             });
 
-            // Linha Total Geral
-            ctx.fillStyle = "#2D3E18";
-            ctx.fillRect(tblX, tY, tblW, 24);
+            // Linha Total Geral em Slate Escuro com Destaque Verde Esmeralda
+            ctx.fillStyle = "#0F172A";
+            ctx.fillRect(tblX, tY, tblW, 26);
 
             let grandAvgDose = sumArea > 0 ? (sumProd / sumArea) : 0;
             let grandProdTon = unit === 'kg_ha' ? (sumProd / 1000) : sumProd;
 
             ctx.fillStyle = "#FFFFFF";
             ctx.font = "bold 11px Helvetica, Arial";
-            ctx.fillText("Total Geral", tblX + 35, tY + 16);
-            ctx.fillText(`${Math.round(sumArea)}`, tblX + 115, tY + 16);
-            ctx.fillText(`${Math.round(grandProdTon)}`, tblX + 210, tY + 16);
-            ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 305, tY + 16);
+            ctx.fillText("Total Geral", tblX + 40, tY + 17);
+            
+            ctx.fillStyle = "#34D399";
+            ctx.font = "bold 11px Helvetica, Arial";
+            ctx.fillText(`${Math.round(sumArea)}`, tblX + 120, tY + 17);
+            ctx.fillText(`${format1Decimal(grandProdTon)}`, tblX + 220, tY + 17);
+            ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 315, tY + 17);
 
             ctx.textAlign = "left";
 
