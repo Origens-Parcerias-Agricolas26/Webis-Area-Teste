@@ -568,7 +568,6 @@
         let vrateUniqueDoses = [];
         let vrateCustomGeoJSON = null;
 
-        // GERADOR DA PALETA COMPLETA RdYlGn (RED-YELLOW-GREEN)
         function getRdYlGnPalette(n) {
             const colors = ['#d73027', '#f46d43', '#fdae61', '#fee08b', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850'];
             if (n <= 1) return ['#1a9850'];
@@ -702,7 +701,6 @@
             return r;
         }
 
-        // BUSCA ROBUSTA DE DADOS NA SAFRA SELECIONADA
         function getFeatureDepthData(feature, depthKey, selectedSafras) {
             if (!feature || !feature.properties) return {};
             const props = feature.properties;
@@ -1796,7 +1794,7 @@
             }
         }
 
-        // DESENHAR CANVAS DO LAUDO DA TAXA VARIÁVEL (PDF COM TABELA SEGUINDO MODELO: Campo, Área campo, Total [Insumo], Dose média)
+        // DESENHAR CANVAS DO LAUDO DA TAXA VARIÁVEL (PDF REFORMATADO SEM SOBREPOSIÇÃO DE NOMES)
         function drawVRateCanvas(farmInfo, product, unit) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -1941,7 +1939,7 @@
             }
 
             // LEGENDA DE DOSES EXATAS NO PDF
-            const legX = 980, legY = 120;
+            const legX = 970, legY = 120;
             ctx.fillStyle = "#F8FAFC";
             ctx.fillRect(legX, legY, 210, 320);
             ctx.strokeStyle = "#CBD5E1";
@@ -1969,8 +1967,18 @@
                 currY += 28;
             });
 
-            // MONTAGEM DA TABELA SEGUINDO MODELO: Campo | Área campo (ha) | Total [Insumo] (ton) | Dose média por campo (Kg)
-            const tblX = 1205, tblY = 120;
+            ctx.fillStyle = "#f1f5f9";
+            ctx.fillRect(legX + 15, currY - 12, 16, 16);
+            ctx.strokeStyle = "#64748B";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(legX + 15, currY - 16, 22, 22);
+
+            ctx.fillStyle = "#334155";
+            ctx.font = "bold 12px Helvetica, Arial";
+            ctx.fillText(`Sem Aplicação (0 ${unitStr})`, legX + 38, currY);
+
+            // MONTAGEM DA TABELA (COM LARGURA E TEXTOS FORMATADOS SEM SOBREPOSIÇÃO)
+            const tblX = 1195, tblY = 120;
             const tblW = 360;
 
             let talhaoMap = {};
@@ -1987,17 +1995,17 @@
 
             const sortedTalhaoKeys = Object.keys(talhaoMap).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
 
-            // Cabeçalho Modelo Exato
+            // Cabeçalho Modelo Exato Formatado Sem Encaixe de Nomes
             ctx.fillStyle = "#3A4F1D";
             ctx.fillRect(tblX, tblY, tblW, 32);
 
             ctx.fillStyle = "#FFFFFF";
-            ctx.font = "bold 11px Helvetica, Arial";
+            ctx.font = "bold 10px Helvetica, Arial";
             ctx.textAlign = "center";
             ctx.fillText("Campo", tblX + 35, tblY + 20);
             ctx.fillText("Área campo (ha)", tblX + 115, tblY + 20);
-            ctx.fillText(`Total ${product} (ton)`, tblX + 215, tblY + 20);
-            ctx.fillText("Dose média por campo (Kg)", tblX + 310, tblY + 20);
+            ctx.fillText(`Total ${product} (ton)`, tblX + 210, tblY + 20);
+            ctx.fillText("Dose média (kg/ha)", tblX + 305, tblY + 20);
 
             let tY = tblY + 32;
             let sumArea = 0, sumProd = 0;
@@ -2019,8 +2027,8 @@
                 ctx.font = "10px Helvetica, Arial";
                 ctx.fillText(tKey, tblX + 35, tY + 14);
                 ctx.fillText(`${Math.round(data.area)}`, tblX + 115, tY + 14);
-                ctx.fillText(`${Math.round(prodTon)}`, tblX + 215, tY + 14);
-                ctx.fillText(`${Math.round(avgDose)}`, tblX + 310, tY + 14);
+                ctx.fillText(`${Math.round(prodTon)}`, tblX + 210, tY + 14);
+                ctx.fillText(`${Math.round(avgDose)}`, tblX + 305, tY + 14);
 
                 tY += 20;
             });
@@ -2036,8 +2044,8 @@
             ctx.font = "bold 11px Helvetica, Arial";
             ctx.fillText("Total Geral", tblX + 35, tY + 16);
             ctx.fillText(`${Math.round(sumArea)}`, tblX + 115, tY + 16);
-            ctx.fillText(`${Math.round(grandProdTon)}`, tblX + 215, tY + 16);
-            ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 310, tY + 16);
+            ctx.fillText(`${Math.round(grandProdTon)}`, tblX + 210, tY + 16);
+            ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 305, tY + 16);
 
             ctx.textAlign = "left";
 
