@@ -121,7 +121,7 @@
                         </button>
 
                         <!-- MÓDULO: AMOSTRAGEM DE SOLO -->
-                        <button onclick="switchTab('sampling')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800" id="tab-sampling">
+                        <button onclick="switchTab('sampling')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hidden" id="tab-sampling">
                             <i class="fa-solid fa-vial-circle-check text-blue-400"></i><span>Amostragem de Solo</span>
                         </button>
 
@@ -243,7 +243,7 @@
                                 </div>
                             </div>
 
-                            <!-- LISTA COMPLETA DOS PARÂMETROS DE SOLO -->
+                            <!-- PARÂMETROS DE SOLO -->
                             <div>
                                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Parâmetro de Solo</label>
                                 <select id="sel-param" onchange="updateGISMap()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-sm text-slate-800">
@@ -685,8 +685,9 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-tractor text-origens-green mr-2"></i>Cadastrar Nova Fazenda</h3>
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-tractor text-origens-green mr-2"></i>Cadastrar / Editar Fazenda</h3>
                             <form onsubmit="handleCreateFarmDirect(event)" class="space-y-4">
+                                <input type="hidden" id="edit-farm-key" value="">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ID da Fazenda (sem espaços)</label>
                                     <input type="text" id="farm-id" required placeholder="Ex: fazenda_boa_vista" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
@@ -709,15 +710,21 @@
                                         <input type="number" step="0.1" id="farm-area" required placeholder="Ex: 850.5" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
                                     </div>
                                 </div>
-                                <button type="submit" class="w-full bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl transition-all shadow">
-                                    Salvar Fazenda na Nuvem
-                                </button>
+                                <div class="flex gap-2">
+                                    <button type="submit" id="btn-save-farm" class="flex-1 bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl transition-all shadow">
+                                        Salvar Fazenda na Nuvem
+                                    </button>
+                                    <button type="button" id="btn-cancel-farm-edit" onclick="cancelFarmEdit()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 rounded-xl transition-all">
+                                        Cancelar
+                                    </button>
+                                </div>
                             </form>
                         </div>
 
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-user-plus text-origens-green mr-2"></i>Autorizar E-mail Google do Cliente</h3>
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-user-plus text-origens-green mr-2"></i>Autorizar / Editar E-mail do Cliente</h3>
                             <form onsubmit="handleCreateUser(event)" class="space-y-4">
+                                <input type="hidden" id="edit-user-mode" value="create">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome do Produtor</label>
                                     <input type="text" id="new-name" required placeholder="Ex: João da Silva" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
@@ -737,9 +744,24 @@
                                     <div id="new-farm-checkboxes" class="max-h-36 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-3 space-y-2">
                                     </div>
                                 </div>
-                                <button type="submit" class="w-full bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl transition-all shadow">
-                                    Autorizar E-mail Google
-                                </button>
+
+                                <!-- PERMISSÃO ESPECÍFICA DE AMOSTRAGEM DE SOLO -->
+                                <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl space-y-1">
+                                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-extrabold text-blue-900">
+                                        <input type="checkbox" id="chk-allow-sampling" class="h-4 w-4 text-blue-600 rounded">
+                                        <span><i class="fa-solid fa-vial-circle-check text-blue-600 mr-1"></i>Permitir Acesso ao Módulo de Amostragem de Solo</span>
+                                    </label>
+                                    <p class="text-[11px] text-blue-700 pl-6">Se desmarcado, a aba de amostragem ficará oculta para este usuário.</p>
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <button type="submit" id="btn-save-user" class="flex-1 bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl transition-all shadow">
+                                        Autorizar E-mail Google
+                                    </button>
+                                    <button type="button" id="btn-cancel-user-edit" onclick="cancelUserEdit()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 rounded-xl transition-all">
+                                        Cancelar
+                                    </button>
+                                </div>
                             </form>
                         </div>
                     </div>
@@ -771,6 +793,7 @@
                                             <th class="p-3">Cliente</th>
                                             <th class="p-3">E-mail Google</th>
                                             <th class="p-3">Fazendas Perm.</th>
+                                            <th class="p-3 text-center">Amostragem</th>
                                             <th class="p-3 text-right">Ações</th>
                                         </tr>
                                     </thead>
@@ -805,7 +828,7 @@
         let mapLeft = null, mapRight = null, vrateMap = null, seedsMap = null;
         let geojsonLayerLeft = null, geojsonLayerRight = null, vrateGeojsonLayer = null, seedsGeojsonLayer = null;
         let tileLayerLeft = null, tileLayerRight = null;
-        let currentUser = null, currentUserRole = "client", currentUserAllowedFarms = ["all"];
+        let currentUser = null, currentUserRole = "client", currentUserAllowedFarms = ["all"], canAccessSampling = false;
         let farmsDatabase = {}, usersDatabase = [];
         let splitPosition = 0.5, isSyncing = false;
 
@@ -847,17 +870,21 @@
             } catch (e) { console.error(e); }
         }
 
-        // TRAVA RIGOROSA DE SEGURANÇA POR E-MAIL
+        // TRAVA RIGOROSA DE SEGURANÇA POR E-MAIL E MÓDULOS
         async function checkUserAuthorization() {
             if (!currentUser) return;
             const userEmail = currentUser.email.toLowerCase();
             const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
 
+            canAccessSampling = false;
+
             if (adminEmails.includes(userEmail)) { 
                 currentUserRole = "admin"; 
+                canAccessSampling = true;
             } else if (userEmail.endsWith("@origens.agr.br")) { 
                 currentUserRole = "client"; 
                 currentUserAllowedFarms = ["all"]; 
+                canAccessSampling = true;
             } else {
                 try {
                     const userDoc = await db.collection("users").doc(userEmail).get();
@@ -865,6 +892,7 @@
                         const userData = userDoc.data();
                         currentUserRole = userData.role || "client";
                         currentUserAllowedFarms = userData.farms || [];
+                        canAccessSampling = !!userData.allowSampling;
                     } else { 
                         alert("Acesso restrito à equipe Origens ou usuários autorizados pelo administrador!"); 
                         await auth.signOut(); 
@@ -891,6 +919,16 @@
                 roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
                 document.getElementById('admin-only-menu').classList.remove('hidden');
                 document.getElementById('upload-box-admin').classList.remove('hidden');
+            }
+
+            // Exibir ou ocultar o botão do módulo de Amostragem
+            const tabSamplingBtn = document.getElementById('tab-sampling');
+            if (tabSamplingBtn) {
+                if (canAccessSampling) {
+                    tabSamplingBtn.classList.remove('hidden');
+                } else {
+                    tabSamplingBtn.classList.add('hidden');
+                }
             }
 
             await loadCloudData();
@@ -1128,8 +1166,9 @@
                     </td>
                     <td class="p-3 text-slate-500">${farmsDatabase[k].location}</td>
                     <td class="p-3 font-semibold text-emerald-600">${farmsDatabase[k].area} ha</td>
-                    <td class="p-3 text-right">
-                        <button onclick="deleteFarm('${k}')" class="text-red-600 hover:text-red-800 font-bold"><i class="fa-solid fa-trash"></i></button>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="editFarm('${k}')" class="text-blue-600 hover:text-blue-800 font-bold" title="Editar Fazenda"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteFarm('${k}')" class="text-red-600 hover:text-red-800 font-bold" title="Excluir Fazenda"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -1139,17 +1178,54 @@
                 if (u.farms && !u.farms.includes('all')) {
                     farmNames = u.farms.map(fKey => farmsDatabase[fKey] ? farmsDatabase[fKey].name : fKey).join(', ');
                 }
+                const hasSampling = !!u.allowSampling;
+                const samplingBadge = hasSampling 
+                    ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Liberado</span>`
+                    : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Bloqueado</span>`;
+
                 return `
                     <tr class="hover:bg-slate-50">
                         <td class="p-3 font-bold">${u.name || 'Cliente'}</td>
                         <td class="p-3 font-mono text-slate-600">${u.email}</td>
                         <td class="p-3 text-slate-500 font-semibold">${farmNames}</td>
-                        <td class="p-3 text-right">
-                            <button onclick="deleteUser('${u.email}')" class="text-red-600 hover:text-red-800 font-bold"><i class="fa-solid fa-trash"></i></button>
+                        <td class="p-3 text-center">${samplingBadge}</td>
+                        <td class="p-3 text-right space-x-2">
+                            <button onclick="editUser('${u.email}')" class="text-blue-600 hover:text-blue-800 font-bold" title="Editar Usuário"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteUser('${u.email}')" class="text-red-600 hover:text-red-800 font-bold" title="Excluir Permissão"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        // EDIÇÃO E CRIAÇÃO DE FAZENDAS
+        function editFarm(key) {
+            const farm = farmsDatabase[key];
+            if (!farm) return;
+
+            document.getElementById('edit-farm-key').value = key;
+            document.getElementById('farm-id').value = key;
+            document.getElementById('farm-id').disabled = true; // Impede alterar a chave ID
+            document.getElementById('farm-producer').value = farm.producer || '';
+            document.getElementById('farm-name').value = farm.name || '';
+            document.getElementById('farm-location').value = farm.location || '';
+            document.getElementById('farm-area').value = farm.area || 0;
+
+            document.getElementById('btn-save-farm').innerText = "Atualizar Fazenda";
+            document.getElementById('btn-cancel-farm-edit').classList.remove('hidden');
+        }
+
+        function cancelFarmEdit() {
+            document.getElementById('edit-farm-key').value = '';
+            document.getElementById('farm-id').value = '';
+            document.getElementById('farm-id').disabled = false;
+            document.getElementById('farm-producer').value = '';
+            document.getElementById('farm-name').value = '';
+            document.getElementById('farm-location').value = '';
+            document.getElementById('farm-area').value = '';
+
+            document.getElementById('btn-save-farm').innerText = "Salvar Fazenda na Nuvem";
+            document.getElementById('btn-cancel-farm-edit').classList.add('hidden');
         }
 
         async function handleCreateFarmDirect(e) {
@@ -1159,17 +1235,18 @@
             }
 
             if (currentUserRole !== 'admin') {
-                alert("Apenas administradores master podem cadastrar fazendas!");
+                alert("Apenas administradores master podem cadastrar/editar fazendas!");
                 return false;
             }
 
+            const editKey = document.getElementById('edit-farm-key').value;
             const idInput = document.getElementById('farm-id');
             const producerInput = document.getElementById('farm-producer');
             const nameInput = document.getElementById('farm-name');
             const locationInput = document.getElementById('farm-location');
             const areaInput = document.getElementById('farm-area');
 
-            const id = idInput.value.trim().toLowerCase().replace(/\s+/g, '_');
+            const id = editKey || idInput.value.trim().toLowerCase().replace(/\s+/g, '_');
             const producer = producerInput.value.trim();
             const name = nameInput.value.trim();
             const location = locationInput.value.trim();
@@ -1180,7 +1257,7 @@
                 return false;
             }
 
-            const initialGeoJSON = { "type": "FeatureCollection", "features": [] };
+            const initialGeoJSON = farmsDatabase[id] ? farmsDatabase[id].geojson : { "type": "FeatureCollection", "features": [] };
 
             try {
                 const compressedZip = await compressGeoJSON(initialGeoJSON);
@@ -1193,23 +1270,59 @@
                     isChunked: false
                 };
 
-                await db.collection("farms").doc(id).set(payloadToSave);
+                await db.collection("farms").doc(id).set(payloadToSave, { merge: true });
                 farmsDatabase[id] = { name: name, producer: producer, location: location, area: area, geojson: initialGeoJSON };
 
                 populateFarmSelector();
                 renderAdminTables();
-                alert(`Fazenda ${name} (${producer}) cadastrada com sucesso na nuvem!`);
-                
-                idInput.value = '';
-                producerInput.value = '';
-                nameInput.value = '';
-                locationInput.value = '';
-                areaInput.value = '';
+                alert(`Fazenda ${name} (${producer}) salva com sucesso na nuvem!`);
+                cancelFarmEdit();
             } catch (err) {
                 console.error("Erro ao salvar fazenda:", err);
                 alert("Falha ao salvar fazenda na nuvem: " + err.message);
             }
             return false;
+        }
+
+        // EDIÇÃO E CRIAÇÃO DE USUÁRIOS
+        function editUser(email) {
+            const user = usersDatabase.find(u => u.email === email);
+            if (!user) return;
+
+            document.getElementById('edit-user-mode').value = "edit";
+            document.getElementById('new-name').value = user.name || '';
+            document.getElementById('new-email').value = user.email;
+            document.getElementById('new-email').disabled = true; // Chave primária do documento
+
+            const chkAll = document.getElementById('chk-farm-all');
+            const isAll = user.farms && user.farms.includes('all');
+            if (chkAll) chkAll.checked = isAll;
+
+            const items = document.querySelectorAll('.chk-farm-item');
+            items.forEach(chk => {
+                chk.checked = isAll || (user.farms && user.farms.includes(chk.value));
+            });
+
+            document.getElementById('chk-allow-sampling').checked = !!user.allowSampling;
+
+            document.getElementById('btn-save-user').innerText = "Atualizar Permissões do Cliente";
+            document.getElementById('btn-cancel-user-edit').classList.remove('hidden');
+        }
+
+        function cancelUserEdit() {
+            document.getElementById('edit-user-mode').value = "create";
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-email').value = '';
+            document.getElementById('new-email').disabled = false;
+            
+            const chkAll = document.getElementById('chk-farm-all');
+            if (chkAll) chkAll.checked = false;
+            toggleAllFarmsCheckboxes(chkAll);
+
+            document.getElementById('chk-allow-sampling').checked = false;
+
+            document.getElementById('btn-save-user').innerText = "Autorizar E-mail Google";
+            document.getElementById('btn-cancel-user-edit').classList.add('hidden');
         }
 
         async function handleCreateUser(e) {
@@ -1227,6 +1340,7 @@
             const emailInput = document.getElementById('new-email');
             const chkAll = document.getElementById('chk-farm-all');
             const chkItems = document.querySelectorAll('.chk-farm-item:checked');
+            const allowSampling = document.getElementById('chk-allow-sampling').checked;
 
             const name = nameInput.value.trim();
             const email = emailInput.value.trim().toLowerCase();
@@ -1248,17 +1362,13 @@
                 return false;
             }
 
-            const userObj = { name: name, role: 'client', farms: selectedFarms };
+            const userObj = { name: name, role: 'client', farms: selectedFarms, allowSampling: allowSampling };
 
             try {
-                await db.collection("users").doc(email).set(userObj);
+                await db.collection("users").doc(email).set(userObj, { merge: true });
                 await loadCloudData();
-                alert(`E-mail ${email} autorizado com sucesso para as fazendas selecionadas!`);
-                
-                nameInput.value = '';
-                emailInput.value = '';
-                if(chkAll) chkAll.checked = false;
-                toggleAllFarmsCheckboxes(chkAll);
+                alert(`E-mail ${email} salvo com sucesso com as permissões atualizadas!`);
+                cancelUserEdit();
             } catch (err) {
                 console.error("Erro ao autorizar usuário:", err);
                 alert("Falha ao autorizar e-mail na nuvem: " + err.message);
@@ -1350,6 +1460,12 @@
         }
 
         function switchTab(tab) {
+            // Trava de segurança para tentativa de acesso direto via aba
+            if (tab === 'sampling' && !canAccessSampling) {
+                alert("Você não possui permissão de acesso ao Módulo de Amostragem de Solo.");
+                return;
+            }
+
             ['maps', 'vrate', 'seeds', 'sampling', 'users'].forEach(t => {
                 const el = document.getElementById(`content-${t}`);
                 const btn = document.getElementById(`tab-${t}`);
