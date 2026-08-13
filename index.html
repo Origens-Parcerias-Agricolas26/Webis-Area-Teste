@@ -689,11 +689,11 @@
                 }
             }
 
+            // Normalização direta de Argila sem multiplicação
             let rawArgila = r.Argila !== undefined ? r.Argila : (r.ARGILA !== undefined ? r.ARGILA : (r['Argila (%)'] !== undefined ? r['Argila (%)'] : r['Argila(g/kg)']));
             if (rawArgila !== undefined && rawArgila !== null && rawArgila !== '') {
                 let argNum = parseFloat(String(rawArgila).replace(',', '.'));
                 if (!isNaN(argNum) && argNum > 0) {
-                    if (argNum <= 100) argNum = argNum * 10;
                     r.Argila = format1Decimal(argNum);
                 }
             }
