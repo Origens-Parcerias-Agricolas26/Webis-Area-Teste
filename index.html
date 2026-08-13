@@ -584,7 +584,7 @@
                         </div>
                     </div>
 
-                    <!-- CARDS DE KPI (DASHBOARD) - LEITURA DIRETA DO CABEÇALHO CONSOLIDADO DA PLANILHA -->
+                    <!-- CARDS DE KPI (DASHBOARD) -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
                             <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-700 text-xl font-bold">
@@ -2591,7 +2591,7 @@
                 });
             }
 
-            // MONTAGEM DA TABELA
+            // MONTAGEM DA TABELA RESUMO NO PDF
             const tblX = 1195, tblY = 110;
             const tblW = 365;
 
@@ -3367,8 +3367,16 @@
                     let haColHeaderStr = cols[3] || '0';
                     let haPendHeaderStr = cols[4] || '0';
                     let pctColHeaderStr = cols[5] || '0%';
-
                     let pctColHeaderNum = parseFloat(pctColHeaderStr.replace('%', '').replace(',', '.')) || 0;
+
+                    // Salva na memória para restaurar quando o filtro for "Todos os Solicitantes"
+                    window.samplingHeaderTotals = {
+                        haToColHeaderStr,
+                        haColHeaderStr,
+                        haPendHeaderStr,
+                        pctColHeaderStr,
+                        pctColHeaderNum
+                    };
 
                     document.getElementById('kpi-ha-total').innerText = `${haToColHeaderStr} ha`;
                     document.getElementById('kpi-ha-coletados').innerText = `${haColHeaderStr} ha`;
@@ -3429,6 +3437,7 @@
             const searchTerm = (document.getElementById('sampling-search')?.value || '').toLowerCase();
             const selectedSol = document.getElementById('sampling-filter-solicitante')?.value || 'all';
 
+            // 1. Filtrar registros conforme a busca e o solicitante selecionado
             const filtered = samplingRawRows.filter(r => {
                 const matchesSearch = r.fazenda.toLowerCase().includes(searchTerm) || r.solicitante.toLowerCase().includes(searchTerm);
                 const matchesSol = selectedSol === 'all' || r.solicitante === selectedSol;
@@ -3437,10 +3446,63 @@
 
             if (!filtered.length) {
                 tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 font-semibold italic">Nenhum registro encontrado para os filtros selecionados.</td></tr>`;
+                
+                // Se não houver registros no filtro, zera os KPIs do topo
+                if (selectedSol !== 'all' || searchTerm !== '') {
+                    document.getElementById('kpi-ha-total').innerText = `0,00 ha`;
+                    document.getElementById('kpi-ha-coletados').innerText = `0,00 ha`;
+                    document.getElementById('kpi-ha-pendentes').innerText = `0,00 ha`;
+                    document.getElementById('kpi-pct-geral').innerText = `0,00%`;
+                    const progressBar = document.getElementById('sampling-progress-bar');
+                    const progressText = document.getElementById('sampling-progress-text');
+                    if (progressBar) progressBar.style.width = `0%`;
+                    if (progressText) progressText.innerText = `0,00% Concluído`;
+                }
                 return;
             }
 
-            tbody.innerHTML = filtered.map((r, idx) => {
+            // 2. Se houver filtro ativo (solicitante específico ou busca), calcula o SUBTOTAL
+            if (selectedSol !== 'all' || searchTerm !== '') {
+                let subHaToCollect = 0;
+                let subHaCollected = 0;
+                let subHaPending = 0;
+
+                filtered.forEach(r => {
+                    subHaToCollect += r.haColetar;
+                    subHaCollected += r.haColetados;
+                    subHaPending += r.haPendentes;
+                });
+
+                let subPctCollected = subHaToCollect > 0 ? ((subHaCollected / subHaToCollect) * 100) : 0;
+
+                // Atualiza os Cards de KPI com o SUBTOTAL do filtro
+                document.getElementById('kpi-ha-total').innerText = `${subHaToCollect.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+                document.getElementById('kpi-ha-coletados').innerText = `${subHaCollected.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+                document.getElementById('kpi-ha-pendentes').innerText = `${subHaPending.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+                document.getElementById('kpi-pct-geral').innerText = `${subPctCollected.toFixed(2).replace('.', ',')}%`;
+
+                // Atualiza a barra de progresso com o % do filtro
+                const progressBar = document.getElementById('sampling-progress-bar');
+                const progressText = document.getElementById('sampling-progress-text');
+                if (progressBar) progressBar.style.width = `${Math.min(subPctCollected, 100)}%`;
+                if (progressText) progressText.innerText = `${subPctCollected.toFixed(2).replace('.', ',')}% Concluído (Filtro)`;
+            } else {
+                // Se estiver em "Todos os Solicitantes" sem busca, restaura os Totais Gerais do Cabeçalho da Planilha
+                if (window.samplingHeaderTotals) {
+                    document.getElementById('kpi-ha-total').innerText = `${window.samplingHeaderTotals.haToColHeaderStr} ha`;
+                    document.getElementById('kpi-ha-coletados').innerText = `${window.samplingHeaderTotals.haColHeaderStr} ha`;
+                    document.getElementById('kpi-ha-pendentes').innerText = `${window.samplingHeaderTotals.haPendHeaderStr} ha`;
+                    document.getElementById('kpi-pct-geral').innerText = `${window.samplingHeaderTotals.pctColHeaderStr}`;
+
+                    const progressBar = document.getElementById('sampling-progress-bar');
+                    const progressText = document.getElementById('sampling-progress-text');
+                    if (progressBar) progressBar.style.width = `${Math.min(window.samplingHeaderTotals.pctColHeaderNum, 100)}%`;
+                    if (progressText) progressText.innerText = `${window.samplingHeaderTotals.pctColHeaderStr} Concluído da Safra`;
+                }
+            }
+
+            // 3. Renderiza as linhas da tabela
+            tbody.innerHTML = filtered.map((r) => {
                 let pctColNum = parseFloat(r.pctColetadosStr.replace('%', '').replace(',', '.')) || 0;
                 let badgeColor = 'bg-slate-100 text-slate-700';
 
