@@ -120,6 +120,11 @@
                             <i class="fa-solid fa-wheat-awn text-emerald-400"></i><span>Sementes & Plantio TV</span>
                         </button>
 
+                        <!-- NOVO MÓDULO: AMOSTRAGEM DE SOLO -->
+                        <button onclick="switchTab('sampling')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800" id="tab-sampling">
+                            <i class="fa-solid fa-vial-circle-check text-blue-400"></i><span>Amostragem de Solo</span>
+                        </button>
+
                         <div id="admin-only-menu" class="pt-4 border-t border-slate-800 mt-4 hidden">
                             <span class="text-xs text-slate-500 font-bold px-4 uppercase block mb-2">Administração</span>
                             <button onclick="switchTab('users')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800" id="tab-users">
@@ -557,6 +562,114 @@
                         <div class="absolute bottom-6 right-6 bg-white/95 backdrop-blur p-4 rounded-xl shadow-xl border border-slate-200 z-30 min-w-[240px]">
                             <span id="seeds-legend-title" class="text-xs font-black text-slate-900 uppercase block mb-2 border-b pb-1">População de Plantio</span>
                             <div id="seeds-legend-items" class="space-y-1.5 text-xs font-semibold text-slate-700"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MÓDULO 4: ACOMPANHAMENTO DE AMOSTRAGEM DE SOLO -->
+                <div id="content-sampling" class="hidden h-full flex flex-col space-y-4 overflow-y-auto pr-2">
+                    <!-- Cabeçalho Módulo -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+                        <div>
+                            <h2 class="text-xl font-black text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-vial-circle-check text-blue-600"></i>
+                                <span>Acompanhamento de Amostragem de Solo</span>
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Status de coleta em tempo real sincronizado com a planilha do Google Sheets.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="fetchSamplingData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow flex items-center gap-2 transition-all">
+                                <i class="fa-solid fa-rotate"></i><span>Atualizar Dados Agora</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CARDS DE KPI (DASHBOARD) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-700 text-xl font-bold">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                            </div>
+                            <div>
+                                <span class="text-[11px] font-bold uppercase text-slate-400 block">Total a Coletar</span>
+                                <span id="kpi-ha-total" class="text-xl font-black text-slate-900">0,00 ha</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-700 text-xl font-bold">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                            <div>
+                                <span class="text-[11px] font-bold uppercase text-slate-400 block">ha Coletados</span>
+                                <span id="kpi-ha-coletados" class="text-xl font-black text-emerald-600">0,00 ha</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-700 text-xl font-bold">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div>
+                                <span class="text-[11px] font-bold uppercase text-slate-400 block">ha Pendentes</span>
+                                <span id="kpi-ha-pendentes" class="text-xl font-black text-amber-600">0,00 ha</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-700 text-xl font-bold">
+                                <i class="fa-solid fa-chart-pie"></i>
+                            </div>
+                            <div>
+                                <span class="text-[11px] font-bold uppercase text-slate-400 block">Progresso Geral</span>
+                                <span id="kpi-pct-geral" class="text-xl font-black text-blue-600">0,00%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BARRA DE PROGRESSO GERAL -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+                            <span>Avanço Físico das Amostras</span>
+                            <span id="sampling-progress-text">0% Concluído</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+                            <div id="sampling-progress-bar" class="bg-gradient-to-r from-emerald-500 to-blue-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- FILTROS & TABELA DE RELATÓRIO -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col space-y-4">
+                        <div class="flex flex-wrap gap-4 items-center justify-between">
+                            <div class="flex gap-3 items-center flex-1 max-w-2xl">
+                                <div class="flex-1">
+                                    <input type="text" id="sampling-search" oninput="renderSamplingTable()" placeholder="Buscar por Fazenda ou Solicitante..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-blue-500">
+                                </div>
+                                <select id="sampling-filter-solicitante" onchange="renderSamplingTable()" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+                                    <option value="all">Todos os Solicitantes</option>
+                                </select>
+                            </div>
+                            <span id="sampling-last-update" class="text-[11px] font-semibold text-slate-400">Última atualização: ---</span>
+                        </div>
+
+                        <!-- TABELA ESTILIZADA -->
+                        <div class="overflow-x-auto flex-1 border border-slate-200 rounded-xl">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-900 text-white uppercase text-[11px] font-black tracking-wider">
+                                        <th class="p-3">Solicitante</th>
+                                        <th class="p-3">Fazenda</th>
+                                        <th class="p-3 text-right">ha a Coletar</th>
+                                        <th class="p-3 text-right">ha Coletados</th>
+                                        <th class="p-3 text-right">ha Pendentes</th>
+                                        <th class="p-3 text-center">% Coletados</th>
+                                        <th class="p-3 text-center">% Pendentes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sampling-table-body" class="divide-y divide-slate-200 font-medium">
+                                    <tr><td colspan="7" class="p-6 text-center text-slate-400 font-semibold italic">Carregando dados da planilha online...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -1216,14 +1329,17 @@
         }
 
         function switchTab(tab) {
-            ['maps', 'vrate', 'seeds', 'users'].forEach(t => {
+            ['maps', 'vrate', 'seeds', 'sampling', 'users'].forEach(t => {
                 const el = document.getElementById(`content-${t}`);
                 const btn = document.getElementById(`tab-${t}`);
                 if (el) el.classList.add('hidden');
                 if (btn) btn.classList.remove('bg-slate-800', 'text-white');
             });
-            document.getElementById(`content-${tab}`).classList.remove('hidden');
-            document.getElementById(`tab-${tab}`).classList.add('bg-slate-800', 'text-white');
+            
+            const activeContent = document.getElementById(`content-${tab}`);
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            if (activeContent) activeContent.classList.remove('hidden');
+            if (activeBtn) activeBtn.classList.add('bg-slate-800', 'text-white');
 
             if (tab === 'vrate') {
                 initVRateMap();
@@ -1231,6 +1347,8 @@
             } else if (tab === 'seeds') {
                 initSeedsMap();
                 setTimeout(() => { if (seedsMap) { seedsMap.invalidateSize(); seedsChangeFarm(); } }, 100);
+            } else if (tab === 'sampling') {
+                fetchSamplingData();
             } else if (tab === 'maps') {
                 setTimeout(() => {
                     if (mapLeft) mapLeft.invalidateSize();
@@ -2124,7 +2242,7 @@
             }
         }
 
-        // LEITURA E PROCESSAMENTO INDEPENDENTE DE PLANILHAS
+        // LEITURA E PROCESSAMENTO INDEPENDENTE DE PLANILHAS (DOSES DE SEMENTES E/OU CULTIVARES)
         function processSeedsExcel() {
             const farmKey = document.getElementById('seeds-sel-farm').value;
             const fileInput = document.getElementById('seeds-excel-file');
@@ -2452,7 +2570,7 @@
                 });
             }
 
-            // MONTAGEM DA TABELA
+            // MONTAGEM DA TABELA RESUMO NO PDF
             const tblX = 1195, tblY = 110;
             const tblW = 365;
 
@@ -2869,7 +2987,7 @@
             ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
             ctx.fillStyle = "#1E293B";
-            ctx.font = "bold 16px Helvetica, Arial";
+            ctx.font = "bold 18px Helvetica, Arial";
             ctx.textAlign = "left";
             ctx.fillText("ORIGENS Parcerias Agrícolas | Brasnorte - MT", 50, 60);
 
@@ -3183,53 +3301,147 @@
             pdf.save(`Laudo_Prescricao_${product}_${farmInfo.name.replace(/\s+/g, '_')}.pdf`);
         }
 
-        async function exportForMonitor() {
-            if (!vrateProcessedData.length) { alert('Processe primeiro a planilha de prescrição para exportar aos monitores!'); return; }
+        // =========================================================================
+        // MÓDULO 4: LÓGICA DE INTEGRAÇÃO COM PLANILHA GOOGLE SHEETS
+        // =========================================================================
+        let samplingRawRows = [];
 
-            const brand = document.getElementById('vrate-monitor-brand').value;
-            const product = document.getElementById('vrate-product').value;
-            const farmKey = document.getElementById('vrate-sel-farm').value;
-            const farmObj = farmsDatabase[farmKey];
+        // URL pública da aba Relatório exportada como CSV da sua planilha
+        const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1txbBbeQrZEjEP2iJae0Wr66Q0977r4nfiQcDNx1WoZ4/export?format=csv&gid=819798624";
 
-            const zip = new JSZip();
-            let pathPrefix = "";
+        async function fetchSamplingData() {
+            const tbody = document.getElementById('sampling-table-body');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500 font-semibold"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Sincronizando com Google Sheets...</td></tr>`;
 
-            switch (brand) {
-                case 'johndeere': pathPrefix = `Rx/`; break;
-                case 'trimble_aggps': pathPrefix = `AgGPS/Prescriptions/`; break;
-                case 'trimble_agdata': pathPrefix = `AgData/Prescriptions/`; break;
-                case 'stara': pathPrefix = `Dados/Mapas/`; break;
-                case 'raven': pathPrefix = `rxMaps/`; break;
-                case 'caseih': pathPrefix = `Shapefile/`; break;
-                case 'jacto': pathPrefix = `OtMIS/Maps/`; break;
-                case 'agres': pathPrefix = `Agres/Prescricao/`; break;
-                default: pathPrefix = `TASKDATA/`; break;
+            try {
+                const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+                const csvText = await response.text();
+                parseSamplingCSV(csvText);
+            } catch (error) {
+                console.error("Erro ao buscar planilha do Google Sheets:", error);
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Não foi possível conectar à planilha online. Verifique se ela está publicada na Web.</td></tr>`;
+                }
             }
-
-            const fileNameBase = `${product}_Prescricao`;
-            const files = generateSHPFiles(farmObj.geojson, fileNameBase);
-
-            zip.file(`${pathPrefix}${fileNameBase}.shp`, files.shp);
-            zip.file(`${pathPrefix}${fileNameBase}.shx`, files.shx);
-            zip.file(`${pathPrefix}${fileNameBase}.dbf`, files.dbf);
-            zip.file(`${pathPrefix}${fileNameBase}.prj`, files.prj);
-            zip.file(`${pathPrefix}${fileNameBase}.cpg`, files.cpg);
-
-            zip.file(`${pathPrefix}LEIA-ME_PENDRIVE.txt`, `Instruções de Carga do Monitor (${brand.toUpperCase()}):\n1. Extraia a pasta '${pathPrefix}' diretamente na raiz do seu Pendrive.\n2. Insira o pendrive no monitor do trator/pulverizador.\n3. Importe o mapa de prescrição: ${product}`);
-
-            const zipBlob = await zip.generateAsync({ type: 'blob' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(zipBlob);
-            link.download = `Prescricao_${product}_${brand.toUpperCase()}_${farmObj.name.replace(/\s+/g, '_')}.zip`;
-            link.click();
         }
 
-        function exportVRateExcelSummary() {
-            if (!vrateProcessedData.length) { alert('Nenhum dado de taxa variável gerado.'); return; }
-            const ws = XLSX.utils.json_to_sheet(vrateProcessedData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Resumo Prescricao");
-            XLSX.writeFile(wb, "Resumo_Adubacao_TaxaVariavel.xlsx");
+        function parseSamplingCSV(csvText) {
+            const lines = csvText.split(/\r\n|\n/);
+            samplingRawRows = [];
+            let solicitantesSet = new Set();
+
+            let haTotalGeral = 0, haColetadosGeral = 0, haPendentesGeral = 0;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                // Parser simples respeitando aspas de CSV
+                const cols = line.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
+
+                // Identifica linhas de dados (ignorando cabeçalhos e totais)
+                const solicitante = cols[0] || '';
+                const fazenda = cols[1] || '';
+
+                if (!solicitante || solicitante.toUpperCase().includes('SOLICITANTE') || solicitante.toUpperCase().includes('CONFERE')) continue;
+
+                const haColetar = parseNumber(cols[2]) || 0;
+                const haColetados = parseNumber(cols[3]) || 0;
+                const haPendentes = parseNumber(cols[4]) || 0;
+                
+                let pctColetadosStr = cols[5] || '0%';
+                let pctPendentesStr = cols[6] || '0%';
+
+                if (fazenda) {
+                    samplingRawRows.push({
+                        solicitante,
+                        fazenda,
+                        haColetar,
+                        haColetados,
+                        haPendentes,
+                        pctColetadosStr,
+                        pctPendentesStr
+                    });
+
+                    if (solicitante) solicitantesSet.add(solicitante);
+
+                    haTotalGeral += haColetar;
+                    haColetadosGeral += haColetados;
+                    haPendentesGeral += haPendentes;
+                }
+            }
+
+            // Atualizar KPIs do Dashboard
+            document.getElementById('kpi-ha-total').innerText = `${Math.round(haTotalGeral).toLocaleString('pt-BR')} ha`;
+            document.getElementById('kpi-ha-coletados').innerText = `${Math.round(haColetadosGeral).toLocaleString('pt-BR')} ha`;
+            document.getElementById('kpi-ha-pendentes').innerText = `${Math.round(haPendentesGeral).toLocaleString('pt-BR')} ha`;
+
+            let pctGeral = haTotalGeral > 0 ? ((haColetadosGeral / haTotalGeral) * 100) : 0;
+            document.getElementById('kpi-pct-geral').innerText = `${pctGeral.toFixed(1)}%`;
+
+            const progressBar = document.getElementById('sampling-progress-bar');
+            const progressText = document.getElementById('sampling-progress-text');
+            if (progressBar) progressBar.style.width = `${Math.min(pctGeral, 100)}%`;
+            if (progressText) progressText.innerText = `${pctGeral.toFixed(1)}% Concluído da Safra`;
+
+            // Atualizar Filtro de Solicitantes
+            const selSol = document.getElementById('sampling-filter-solicitante');
+            if (selSol) {
+                let optionsHtml = `<option value="all">Todos os Solicitantes (${solicitantesSet.size})</option>`;
+                Array.from(solicitantesSet).sort().forEach(s => {
+                    optionsHtml += `<option value="${s}">${s}</option>`;
+                });
+                selSol.innerHTML = optionsHtml;
+            }
+
+            document.getElementById('sampling-last-update').innerText = `Última atualização: ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`;
+
+            renderSamplingTable();
+        }
+
+        function renderSamplingTable() {
+            const tbody = document.getElementById('sampling-table-body');
+            if (!tbody) return;
+
+            const searchTerm = (document.getElementById('sampling-search')?.value || '').toLowerCase();
+            const selectedSol = document.getElementById('sampling-filter-solicitante')?.value || 'all';
+
+            const filtered = samplingRawRows.filter(r => {
+                const matchesSearch = r.fazenda.toLowerCase().includes(searchTerm) || r.solicitante.toLowerCase().includes(searchTerm);
+                const matchesSol = selectedSol === 'all' || r.solicitante === selectedSol;
+                return matchesSearch && matchesSol;
+            });
+
+            if (!filtered.length) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 font-semibold italic">Nenhum registro encontrado para os filtros selecionados.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map((r, idx) => {
+                let pctColNum = parseFloat(r.pctColetadosStr.replace('%', '').replace(',', '.')) || 0;
+                let badgeColor = 'bg-slate-100 text-slate-700';
+
+                if (pctColNum >= 100) badgeColor = 'bg-emerald-100 text-emerald-800 font-black';
+                else if (pctColNum > 50) badgeColor = 'bg-blue-100 text-blue-800 font-bold';
+                else if (pctColNum > 0) badgeColor = 'bg-amber-100 text-amber-800 font-bold';
+                else badgeColor = 'bg-red-100 text-red-700 font-bold';
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-3 font-bold text-slate-800">${r.solicitante}</td>
+                        <td class="p-3 font-semibold text-slate-900">${r.fazenda}</td>
+                        <td class="p-3 text-right font-mono">${r.haColetar.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="p-3 text-right font-mono text-emerald-700 font-bold">${r.haColetados.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="p-3 text-right font-mono text-amber-700 font-bold">${r.haPendentes.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="p-3 text-center">
+                            <span class="inline-block px-2.5 py-1 rounded-full text-[10px] ${badgeColor}">
+                                ${r.pctColetadosStr}
+                            </span>
+                        </td>
+                        <td class="p-3 text-center font-mono text-slate-500">${r.pctPendentesStr}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         // SALVAMENTO E FUSÃO SEM SOBRESCREVER HISTÓRICO DE SAFRAS
