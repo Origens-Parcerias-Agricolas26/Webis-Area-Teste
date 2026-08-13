@@ -484,7 +484,7 @@
                                     <input type="file" id="seeds-excel-file" accept=".xlsx" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-200 file:text-emerald-900">
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Planilha de Cultivares / Variedades (.xlsx)</label>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Planilha de Cultivares / Variedades (.xlsx) - Opcional</label>
                                     <input type="file" id="seeds-cultivar-excel-file" accept=".xlsx" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-200 file:text-emerald-900">
                                 </div>
                                 <button onclick="processSeedsExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition-all">
@@ -1961,7 +1961,7 @@
         }
 
         // =========================================================================
-        // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES (LEITURA SEPARADA DE PLANILHAS)
+        // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES (SUPORTE A DOLS PLANILHAS SEPARADAS)
         // =========================================================================
         function initSeedsMap() {
             if (!seedsMap) {
@@ -2100,7 +2100,7 @@
                     let colorIdx = seedsAscDoses.indexOf(d);
                     let hexColor = rdYlGnPalette[colorIdx];
                     let itemCultivar = seedsProcessedData.find(x => Math.round(x.dose) === d)?.cultivar || '';
-                    let cultivarStr = (itemCultivar && itemCultivar !== 'Padrão') ? ` - <i>${itemCultivar}</i>` : '';
+                    let cultivarStr = itemCultivar ? ` - <i>${itemCultivar}</i>` : '';
                     return `
                         <div class="flex items-center gap-2">
                             <div class="w-3.5 h-3.5 rounded shadow-sm border border-slate-300" style="background:${d > 0 ? hexColor : '#f1f5f9'}"></div>
@@ -2111,7 +2111,7 @@
             }
         }
 
-        // SUPORTE A PROCESSAR DOLS ARCHIVOS EXCEL SEPARADOS (DOSES + CULTIVARES INDEPENDENTES)
+        // SUPORTE A PROCESSAR DOLS ARCHIVOS EXCEL SEPARADOS (DOSES + CULTIVARES)
         function processSeedsExcel() {
             const farmKey = document.getElementById('seeds-sel-farm').value;
             const fileInput = document.getElementById('seeds-excel-file');
@@ -2126,7 +2126,7 @@
             const executeSeedsLogic = (targetGeoJSON) => {
                 seedsCustomGeoJSON = targetGeoJSON;
 
-                // Leitura independente da planilha de Cultivares/Variedades
+                // Função auxiliar para ler planilha de cultivares separada se houver
                 const loadCultivarFile = () => {
                     return new Promise((resolve) => {
                         if (cultivarFileInput && cultivarFileInput.files.length) {
@@ -2167,7 +2167,7 @@
                             let subKey = cleanString(rawSub);
                             let rawDose = r.Sementes || r.SEMENTES || r.Doses || r.DOSES || r.Populacao || r.POPULACAO || r.Dose || r.DOSE;
                             
-                            // A cultivar vem de forma independente da planilha de cultivares, ou se houver na principal
+                            // Prioridade: Planilha de Cultivares Separada > Coluna da Planilha Principal > 'Padrão'
                             let rawCultivar = separateCultivarMap[subKey] || r.Cultivar || r.CULTIVAR || r.Variedade || r.VARIEDADE || r.Hibrido || r.Material || 'Padrão';
 
                             if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
@@ -2510,7 +2510,7 @@
                     ctx.fillStyle = "#334155";
                     ctx.font = "bold 10px Helvetica, Arial";
                     let textDose = `${Math.round(d)} ${unitStr}`;
-                    if (itemCultivar && itemCultivar !== 'Padrão') textDose += ` (${itemCultivar.substring(0, 10)})`;
+                    if (itemCultivar) textDose += ` (${itemCultivar.substring(0, 10)})`;
                     ctx.fillText(textDose, legX + 34, currY);
                     currY += 26;
                 });
