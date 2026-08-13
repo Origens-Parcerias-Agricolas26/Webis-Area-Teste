@@ -363,7 +363,7 @@
                                 </button>
                             </div>
 
-                            <!-- CONTROLES DE RÓTULO DO MAPA DE TAXA VARIÁVEL (ELIMINA POLUIÇÃO VISUAL) -->
+                            <!-- CONTROLES DE RÓTULO DO MAPA DE TAXA VARIÁVEL -->
                             <div class="space-y-2 pt-2 border-t border-amber-200">
                                 <span class="text-xs font-bold text-amber-800 uppercase tracking-wider block mb-1">Camadas & Rótulos no Mapa/PDF</span>
                                 <label class="flex items-center space-x-3 cursor-pointer">
@@ -380,7 +380,7 @@
                                 </label>
                             </div>
 
-                            <!-- RESUMO DA APLICAÇÃO FORMATADO EM INTEIROS -->
+                            <!-- RESUMO DA APLICAÇÃO -->
                             <div id="vrate-summary-box" class="bg-slate-900 text-white p-4 rounded-2xl space-y-2 hidden">
                                 <span class="text-xs font-black text-amber-400 uppercase block border-b border-slate-800 pb-1">Resumo do Insumo</span>
                                 <div class="flex justify-between text-xs"><span>Produto:</span><b id="vrate-sum-prod" class="text-white">---</b></div>
@@ -606,12 +606,25 @@
             return res;
         }
 
-        function format1Decimal(val) {
+        function parseNumber(val) {
             if (val === null || val === undefined || val === '') return null;
+            if (typeof val === 'number') return isNaN(val) ? null : val;
             const str = String(val).replace(',', '.').trim();
             const num = parseFloat(str);
-            if (isNaN(num)) return null;
-            return Math.round(num * 10) / 10;
+            return isNaN(num) ? null : num;
+        }
+
+        function formatDisplayValue(val) {
+            if (val === null || val === undefined || val === '') return 'N/A';
+            if (typeof val === 'number') {
+                if (Number.isInteger(val)) return String(val);
+                return String(Math.round(val * 100) / 100);
+            }
+            return String(val);
+        }
+
+        function format1Decimal(val) {
+            return formatDisplayValue(val);
         }
 
         function extractSafra(rowObj) {
@@ -637,65 +650,53 @@
             return base.replace(/[^a-z0-9]/g, '');
         }
 
+        // LEITURA INTEGRAL SEM ALTERAR VALORES DA PLANILHA EXCEL
         function sanitizeAndCalculateSoilData(row) {
             if (!row || typeof row !== 'object') return {};
-            const r = { ...row };
+            const r = {};
 
-            Object.keys(r).forEach(k => {
-                if (typeof r[k] === 'string' && r[k].includes(',')) {
-                    const parsed = format1Decimal(r[k]);
-                    if (parsed !== null) r[k] = parsed;
+            Object.keys(row).forEach(k => {
+                const val = row[k];
+                if (val !== null && val !== undefined && val !== '') {
+                    const num = parseNumber(val);
+                    r[k] = (num !== null && !isNaN(num)) ? num : val;
+                } else {
+                    r[k] = null;
                 }
             });
 
-            const ca = format1Decimal(r.Ca) || 0;
-            const mg = format1Decimal(r.Mg) || 0;
-            const rawK = format1Decimal(r.K) || 0;
+            // Apelidos sem alterar os valores
+            if (r.Argila === null && r['Argila (%)'] !== null) r.Argila = r['Argila (%)'];
+            if (r['Argila (%)'] === null && r.Argila !== null) r['Argila (%)'] = r.Argila;
+
+            if (r.MO === null && r['MO (%)'] !== null) r.MO = r['MO (%)'];
+            if (r['MO (%)'] === null && r.MO !== null) r['MO (%)'] = r.MO;
+
+            // Cálculos apenas se o campo estritamente NÃO existir no Excel
+            const ca = r.Ca || 0, mg = r.Mg || 0, rawK = r.K || 0;
             const kCmol = rawK > 10 ? (rawK / 391) : rawK;
-            const al = format1Decimal(r.Al) || 0, h = format1Decimal(r.H) || 0;
-            const sbCalc = ca + mg + kCmol, ctcCalc = sbCalc + h + al;
+            const al = r.Al || 0, h = r.H || 0;
+            const sbCalc = ca + mg + kCmol;
+            const ctcCalc = sbCalc + h + al;
 
-            if (!r.CTC || isNaN(parseFloat(String(r.CTC).replace(',','.')))) { if (ctcCalc > 0) r.CTC = format1Decimal(ctcCalc); }
-            else { r.CTC = format1Decimal(r.CTC); }
-            if (!r.Sb || isNaN(parseFloat(String(r.Sb).replace(',','.')))) { if (sbCalc > 0) r.Sb = format1Decimal(sbCalc); }
-            if (!r['V%'] || isNaN(parseFloat(String(r['V%']).replace(',','.')))) { if (ctcCalc > 0) r['V%'] = format1Decimal((sbCalc / ctcCalc) * 100); }
-            if (!r['Sat. Al'] || isNaN(parseFloat(String(r['Sat. Al']).replace(',','.')))) { if ((sbCalc + al) > 0) r['Sat. Al'] = format1Decimal((al / (sbCalc + al)) * 100); }
+            if (r.Sb === null && sbCalc > 0) r.Sb = Math.round(sbCalc * 100) / 100;
+            if (r.CTC === null && ctcCalc > 0) r.CTC = Math.round(ctcCalc * 100) / 100;
+            if (r['V%'] === null && ctcCalc > 0) r['V%'] = Math.round((sbCalc / ctcCalc) * 1000) / 10;
+            if (r['Sat. Al'] === null && (sbCalc + al) > 0) r['Sat. Al'] = Math.round((al / (sbCalc + al)) * 1000) / 10;
 
-            if (r.MO !== undefined && r.MO !== null && r.MO !== '') {
-                const moVal = format1Decimal(r.MO);
-                r.MO = moVal;
-                if (!r['MO (%)']) r['MO (%)'] = moVal;
-                if (!r['Classes de MO'] || isNaN(parseFloat(String(r['Classes de MO'])))) {
-                    if (moVal !== null) {
-                        if (moVal >= 40) r['Classes de MO'] = 1;
-                        else if (moVal >= 30) r['Classes de MO'] = 2;
-                        else if (moVal >= 20) r['Classes de MO'] = 3;
-                        else r['Classes de MO'] = 4;
-                    }
-                }
+            if (r['Classes de MO'] === null && r.MO !== null) {
+                if (r.MO >= 40) r['Classes de MO'] = 1;
+                else if (r.MO >= 30) r['Classes de MO'] = 2;
+                else if (r.MO >= 20) r['Classes de MO'] = 3;
+                else r['Classes de MO'] = 4;
             }
 
-            if (r.P !== undefined && r.P !== null && r.P !== '') {
-                const pVal = format1Decimal(r.P);
-                r.P = pVal;
-                if (!r['Classes de P'] || isNaN(parseFloat(String(r['Classes de P'])))) {
-                    if (pVal !== null) {
-                        if (pVal >= 18.1) r['Classes de P'] = 5;
-                        else if (pVal >= 12.1) r['Classes de P'] = 4;
-                        else if (pVal >= 8.1) r['Classes de P'] = 3;
-                        else if (pVal >= 3.1) r['Classes de P'] = 2;
-                        else r['Classes de P'] = 1;
-                    }
-                }
-            }
-
-            // Normalização direta de Argila sem multiplicação
-            let rawArgila = r.Argila !== undefined ? r.Argila : (r.ARGILA !== undefined ? r.ARGILA : (r['Argila (%)'] !== undefined ? r['Argila (%)'] : r['Argila(g/kg)']));
-            if (rawArgila !== undefined && rawArgila !== null && rawArgila !== '') {
-                let argNum = parseFloat(String(rawArgila).replace(',', '.'));
-                if (!isNaN(argNum) && argNum > 0) {
-                    r.Argila = format1Decimal(argNum);
-                }
+            if (r['Classes de P'] === null && r.P !== null) {
+                if (r.P >= 18.1) r['Classes de P'] = 5;
+                else if (r.P >= 12.1) r['Classes de P'] = 4;
+                else if (r.P >= 8.1) r['Classes de P'] = 3;
+                else if (r.P >= 3.1) r['Classes de P'] = 2;
+                else r['Classes de P'] = 1;
             }
 
             return r;
@@ -1348,14 +1349,14 @@
                     { min: 501, max: 550, color: '#00FFFF', label: '501 a 550 - Argilosa' },
                     { min: 451, max: 500, color: '#265922', label: '451 a 500 - Argilosa' },
                     { min: 401, max: 450, color: '#66A13B', label: '401 a 450 - Argilosa' },
-                    { min: 351, max: 401, color: '#BDE38B', label: '351 a 401 - Argilosa' },
-                    { min: 301, max: 350, color: '#FFF3B3', label: '301 a 350 - Média' },
-                    { min: 251, max: 300, color: '#FFFF00', label: '251 a 300 - Média' },
-                    { min: 201, max: 250, color: '#FF9999', label: '201 a 250 - Média' },
-                    { min: 151, max: 200, color: '#FF8811', label: '151 a 200 - Média' },
-                    { min: 101, max: 151, color: '#E0482B', label: '101 a 151 - Arenosa' },
-                    { min: 50, max: 100, color: '#B83227', label: '50 a 100 - Arenosa' },
-                    { min: 0, max: 49.9, color: '#5C1D1D', label: '< 50 - Arenosa' }
+                    { min: 351, max: 400.99, color: '#BDE38B', label: '351 a 401 - Argilosa' },
+                    { min: 301, max: 350.99, color: '#FFF3B3', label: '301 a 350 - Média' },
+                    { min: 251, max: 300.99, color: '#FFFF00', label: '251 a 300 - Média' },
+                    { min: 201, max: 250.99, color: '#FF9999', label: '201 a 250 - Média' },
+                    { min: 151, max: 200.99, color: '#FF8811', label: '151 a 200 - Média' },
+                    { min: 101, max: 150.99, color: '#E0482B', label: '101 a 151 - Arenosa' },
+                    { min: 50, max: 100.99, color: '#B83227', label: '50 a 100 - Arenosa' },
+                    { min: 0, max: 49.99, color: '#5C1D1D', label: '< 50 - Arenosa' }
                 ];
             } else if (param === 'MO' || param === 'MO (%)') {
                 return [
@@ -1459,6 +1460,17 @@
             }
         }
 
+        function getMatchedRule(rawVal, rules) {
+            if (rawVal === null || rawVal === undefined || rawVal === '') return null;
+            const num = parseNumber(rawVal);
+            if (num !== null) {
+                const matched = rules.find(r => num >= r.min && num <= r.max);
+                if (matched) return matched;
+            }
+            const str = String(rawVal).trim().toLowerCase();
+            return rules.find(r => r.label.toLowerCase().includes(str) || str.includes(r.label.toLowerCase())) || null;
+        }
+
         // RENDERIZAÇÃO DA CAMADA COM RÓTULOS E VALORES CENTRAIS PERMANENTES
         function updateGISMap() {
             if (!mapLeft) return;
@@ -1492,12 +1504,10 @@
             const buildLayer = (depthKey) => L.geoJSON(currentGeoJSON, {
                 filter: f => !selectedTalhoes.length || selectedTalhoes.includes(String(f.properties.Talhao)),
                 style: f => {
-                    const val = format1Decimal(getFeatureDepthData(f, depthKey, selectedSafras)[param]);
-                    let color = '#94a3b8';
-                    if (val !== null && val !== undefined && !isNaN(val)) { 
-                        const matched = rules.find(r => val >= r.min && val <= r.max); 
-                        if (matched) color = matched.color; 
-                    }
+                    const rawVal = getFeatureDepthData(f, depthKey, selectedSafras)[param];
+                    const matched = getMatchedRule(rawVal, rules);
+                    let color = matched ? matched.color : '#94a3b8';
+
                     return { 
                         fillColor: color, 
                         fillOpacity: 0.85, 
@@ -1507,8 +1517,8 @@
                 },
                 onEachFeature: (f, layer) => {
                     const depthData = getFeatureDepthData(f, depthKey, selectedSafras);
-                    const val = format1Decimal(depthData[param]);
-                    const displayVal = (val !== null && val !== undefined) ? val : 'N/A';
+                    const rawVal = depthData[param];
+                    const displayVal = formatDisplayValue(rawVal);
                     const subName = f.properties.Subs || f.properties.Subdivisao || f.properties.Talhao || 'Gleba';
 
                     layer.bindPopup(`<b>${subName} (Talhão ${f.properties.Talhao || 'N/A'})</b><br>${param}: <b>${displayVal}</b>`);
@@ -1547,8 +1557,8 @@
             }
 
             const hasValidData = currentGeoJSON.features.some(f => {
-                const val = format1Decimal(getFeatureDepthData(f, depth, selectedSafras)[param]);
-                return val !== null && val !== undefined && !isNaN(val);
+                const val = getFeatureDepthData(f, depth, selectedSafras)[param];
+                return val !== null && val !== undefined && val !== '';
             });
 
             legendTitle.innerText = `${param}`;
@@ -1702,8 +1712,8 @@
                             let rawDose = r.Doses !== undefined ? r.Doses : (r.DOSES !== undefined ? r.DOSES : (r.Dose !== undefined ? r.Dose : (r.DOSE !== undefined ? r.DOSE : (r.Recomendacao || r.Taxa))));
                             
                             if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
-                                let doseVal = parseFloat(String(rawDose).replace(',', '.'));
-                                if (!isNaN(doseVal)) {
+                                let doseVal = parseNumber(rawDose);
+                                if (doseVal !== null) {
                                     vrateDoseMap[subKey] = { dose: doseVal, hasValue: true };
                                 }
                             } else {
@@ -1746,7 +1756,6 @@
 
                     vrateUpdateMap();
 
-                    // EXIBIÇÃO NO PAINEL LATERAL EM NÚMEROS INTEIROS (SEM CASAS DECIMAIS)
                     document.getElementById('vrate-summary-box').classList.remove('hidden');
                     document.getElementById('vrate-sum-prod').innerText = `${product} (${unitStr})`;
                     document.getElementById('vrate-sum-area').innerText = `${Math.round(totalAreaCalculated)} ha`;
@@ -2088,7 +2097,7 @@
                 ctx.font = "10px Helvetica, Arial";
                 ctx.fillText(tKey, tblX + 40, tY + 14);
                 ctx.fillText(`${Math.round(data.area)}`, tblX + 120, tY + 14);
-                ctx.fillText(`${format1Decimal(prodTon)}`, tblX + 220, tY + 14);
+                ctx.fillText(`${formatDisplayValue(prodTon)}`, tblX + 220, tY + 14);
                 ctx.fillText(`${Math.round(avgDoseItem)}`, tblX + 315, tY + 14);
 
                 tY += 20;
@@ -2210,13 +2219,11 @@
                     filteredFeatures.forEach(f => {
                         const depthData = getFeatureDepthData(f, depthConfig.key, selectedSafras);
                         const rawVal = depthData[param];
-                        const val = format1Decimal(rawVal);
+                        const val = formatDisplayValue(rawVal);
 
                         let fillColor = "#94a3b8";
-                        if (val !== null && val !== undefined && !isNaN(val)) {
-                            const matchedRule = rules.find(r => val >= r.min && val <= r.max);
-                            if (matchedRule) fillColor = matchedRule.color;
-                        }
+                        const matched = getMatchedRule(rawVal, rules);
+                        if (matched) fillColor = matched.color;
 
                         const rings = f.geometry.type === 'MultiPolygon' 
                             ? f.geometry.coordinates.flat(1) 
