@@ -3000,6 +3000,340 @@
                 alert("Envie pelo menos o arquivo Shapefile (.zip) da fazenda!");
             }
         }
+        // =========================================================================
+// FUNÇÕES DE EXPORTAÇÃO PDF DO MÓDULO DE TAXA VARIÁVEL & ADUBAÇÃO
+// =========================================================================
+
+function drawVRateCanvas(farmInfo, product, unit) {
+    const canvas = document.getElementById('pdf-render-canvas');
+    const ctx = canvas.getContext('2d');
+    const currentGeoJSON = vrateCustomGeoJSON || farmInfo.geojson;
+    const unitStr = unit === 'kg_ha' ? 'kg/ha' : 't/ha';
+
+    const showLabels = document.getElementById('vrate-chk-labels') ? document.getElementById('vrate-chk-labels').checked : false;
+    const showValues = document.getElementById('vrate-chk-values') ? document.getElementById('vrate-chk-values').checked : true;
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = "#D97706";
+    ctx.lineWidth = 10;
+    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+    ctx.fillStyle = "#1E293B";
+    ctx.font = "bold 18px Helvetica, Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("ORIGENS Parcerias Agrícolas | Brasnorte - MT", 50, 60);
+
+    ctx.fillStyle = "#1E293B";
+    ctx.font = "bold 24px Helvetica, Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(`LAUDO DE APLICAÇÃO - TAXA VARIÁVEL (${product.toUpperCase()})`, 800, 60);
+
+    ctx.fillStyle = "#D97706";
+    ctx.font = "bold 16px Helvetica, Arial";
+    ctx.fillText(`PROPRIEDADE: ${farmInfo.name.toUpperCase()} | INSUMO: ${product.toUpperCase()} (${unitStr})`, 800, 90);
+
+    ctx.textAlign = "left";
+
+    let doseMap = {};
+    vrateProcessedData.forEach(item => {
+        if (item.subs && item.hasValue) doseMap[cleanString(item.subs)] = item.dose;
+    });
+
+    const vrateAscDoses = Array.from(new Set(vrateUniqueDoses)).sort((a, b) => a - b);
+    const rdYlGnPalette = getRdYlGnPalette(vrateAscDoses.length);
+
+    let doseColorMap = {};
+    vrateAscDoses.forEach((d, i) => {
+        doseColorMap[d] = rdYlGnPalette[i];
+    });
+
+    let totalAreaCalculated = 0, totalProductAcc = 0;
+
+    if (currentGeoJSON && currentGeoJSON.features && currentGeoJSON.features.length) {
+        let allPts = [];
+        currentGeoJSON.features.forEach(f => {
+            if (f.geometry && f.geometry.coordinates) {
+                const rings = f.geometry.type === 'MultiPolygon' 
+                    ? f.geometry.coordinates.flat(1) 
+                    : f.geometry.coordinates;
+                rings.forEach(ring => {
+                    if (Array.isArray(ring)) ring.forEach(pt => {
+                        if (Array.isArray(pt) && pt.length >= 2) allPts.push(pt);
+                    });
+                });
+            }
+        });
+
+        if (allPts.length) {
+            const minX = Math.min(...allPts.map(p => p[0]));
+            const maxX = Math.max(...allPts.map(p => p[0]));
+            const minY = Math.min(...allPts.map(p => p[1]));
+            const maxY = Math.max(...allPts.map(p => p[1]));
+
+            const mapX = 50, mapY = 110, mapW = 900, mapH = 990;
+
+            const centerLat = (minY + maxY) / 2;
+            const cosScale = Math.cos(centerLat * Math.PI / 180);
+            const spanX = (maxX - minX) * cosScale || 0.0001;
+            const spanY = (maxY - minY) || 0.0001;
+
+            const scale = Math.min(mapW / spanX, mapH / spanY);
+            const offsetX = mapX + (mapW - spanX * scale) / 2;
+            const offsetY = mapY + (mapH - spanY * scale) / 2;
+
+            currentGeoJSON.features.forEach(f => {
+                let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
+                let subClean = cleanString(rawSub);
+                let doseVal = doseMap[subClean];
+                let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
+
+                let fillColor = '#f1f5f9';
+                if (doseVal !== undefined) {
+                    totalAreaCalculated += area;
+                    totalProductAcc += (doseVal * area);
+                    if (doseColorMap[Math.round(doseVal)]) fillColor = doseColorMap[Math.round(doseVal)];
+                }
+
+                const rings = f.geometry.type === 'MultiPolygon' 
+                    ? f.geometry.coordinates.flat(1) 
+                    : (f.geometry.coordinates || []);
+
+                let totalPx = 0, totalPy = 0, ptCount = 0;
+
+                rings.forEach(ring => {
+                    if (!Array.isArray(ring) || !ring.length) return;
+
+                    ctx.beginPath();
+                    ring.forEach((pt, index) => {
+                        const px = offsetX + (pt[0] - minX) * cosScale * scale;
+                        const py = offsetY + (maxY - pt[1]) * scale;
+                        totalPx += px;
+                        totalPy += py;
+                        ptCount++;
+
+                        if (index === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    });
+                    ctx.closePath();
+
+                    ctx.fillStyle = fillColor;
+                    ctx.fill();
+                    ctx.strokeStyle = "#1e3a8a";
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
+                });
+
+                if (ptCount > 0 && doseVal !== undefined) {
+                    const cx = totalPx / ptCount;
+                    const cy = totalPy / ptCount;
+                    const subName = f.properties.Subs || f.properties.Subdivisao || f.properties.Talhao || 'Gleba';
+                    const roundDose = Math.round(doseVal);
+
+                    let textLabel = "";
+                    if (showLabels && showValues) textLabel = `${subName}: ${roundDose} ${unitStr}`;
+                    else if (showLabels) textLabel = `${subName}`;
+                    else if (showValues) textLabel = `${roundDose} ${unitStr}`;
+
+                    if (textLabel !== "") {
+                        ctx.fillStyle = "#000000";
+                        ctx.font = "bold 9px Helvetica, Arial";
+                        ctx.textAlign = "center";
+                        ctx.fillText(textLabel, cx, cy);
+                        ctx.textAlign = "left";
+                    }
+                }
+            });
+        }
+    }
+
+    // LEGENDA E RESUMO NO PDF
+    const legX = 970, legY = 110;
+    const legW = 210;
+    const maxVisibleDoses = Math.min(vrateUniqueDoses.length, 6);
+    const legH = 50 + (maxVisibleDoses * 26) + 30;
+
+    ctx.fillStyle = "#F8FAFC";
+    ctx.fillRect(legX, legY, legW, legH);
+    ctx.strokeStyle = "#CBD5E1";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(legX, legY, legW, legH);
+
+    ctx.fillStyle = "#0F172A";
+    ctx.font = "bold 15px Helvetica, Arial";
+    ctx.fillText("LEGENDA DE APLICAÇÃO", legX + 15, legY + 25);
+
+    let currY = legY + 52;
+    vrateUniqueDoses.slice(0, 6).forEach((d) => {
+        let colorIdx = vrateAscDoses.indexOf(d);
+        let hexColor = rdYlGnPalette[colorIdx];
+
+        ctx.fillStyle = hexColor;
+        ctx.fillRect(legX + 15, currY - 12, 16, 16);
+        ctx.strokeStyle = "#64748B";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(legX + 15, currY - 12, 16, 16);
+
+        ctx.fillStyle = "#334155";
+        ctx.font = "bold 12px Helvetica, Arial";
+        ctx.fillText(`${Math.round(d)} ${unitStr}`, legX + 38, currY);
+        currY += 26;
+    });
+
+    // CAIXA RESUMO INSUMO
+    const resY = legY + legH + 20;
+    const resH = 175;
+
+    ctx.fillStyle = "#0F172A";
+    ctx.fillRect(legX, resY, legW, resH);
+    ctx.strokeStyle = "#334155";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(legX, resY, legW, resH);
+
+    ctx.fillStyle = "#F59E0B";
+    ctx.font = "bold 14px Helvetica, Arial";
+    ctx.fillText("RESUMO DO INSUMO", legX + 15, resY + 28);
+
+    ctx.strokeStyle = "#1E293B";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(legX + 15, resY + 38);
+    ctx.lineTo(legX + legW - 15, resY + 38);
+    ctx.stroke();
+
+    ctx.fillStyle = "#94A3B8";
+    ctx.font = "bold 11px Helvetica, Arial";
+    ctx.fillText("Produto:", legX + 15, resY + 60);
+    ctx.fillText("Área Total:", legX + 15, resY + 88);
+    ctx.fillText("Dose Média:", legX + 15, resY + 116);
+    ctx.fillText("Total Produto:", legX + 15, resY + 150);
+
+    let avgDose = totalAreaCalculated > 0 ? (totalProductAcc / totalAreaCalculated) : 0;
+    let totalTon = unit === 'kg_ha' ? (totalProductAcc / 1000) : totalProductAcc;
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 11px Helvetica, Arial";
+    ctx.fillText(`${product} (${unitStr})`, legX + legW - 15, resY + 60);
+
+    ctx.fillStyle = "#34D399";
+    ctx.fillText(`${Math.round(totalAreaCalculated)} ha`, legX + legW - 15, resY + 88);
+
+    ctx.fillStyle = "#FCD34D";
+    ctx.fillText(`${Math.round(avgDose)} ${unitStr}`, legX + legW - 15, resY + 116);
+
+    let finalTotalStr = unit === 'kg_ha' 
+        ? `${Math.round(totalTon)} Ton (${Math.round(totalProductAcc)} kg)` 
+        : `${Math.round(totalTon)} Toneladas`;
+
+    ctx.fillStyle = "#34D399";
+    ctx.font = "bold 11px Helvetica, Arial";
+    ctx.fillText(finalTotalStr, legX + legW - 15, resY + 150);
+
+    ctx.textAlign = "left";
+
+    // TABELA RESUMO POR CAMPO
+    const tblX = 1195, tblY = 110;
+    const tblW = 365;
+
+    let talhaoMap = {};
+    vrateProcessedData.forEach(item => {
+        if (item.hasValue) {
+            let tKey = String(item.talhao || 'N/A').toUpperCase();
+            if (!talhaoMap[tKey]) talhaoMap[tKey] = { area: 0, totalProd: 0 };
+            talhaoMap[tKey].area += item.area;
+            talhaoMap[tKey].totalProd += item.total;
+        }
+    });
+
+    const sortedTalhaoKeys = Object.keys(talhaoMap).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+
+    ctx.fillStyle = "#B45309";
+    ctx.fillRect(tblX, tblY, tblW, 34);
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 10px Helvetica, Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Campo", tblX + 40, tblY + 21);
+    ctx.fillText("Área campo (ha)", tblX + 120, tblY + 21);
+    ctx.fillText(`Total ${product} (ton)`, tblX + 220, tblY + 21);
+    ctx.fillText("Dose média (kg/ha)", tblX + 315, tblY + 21);
+
+    let tY = tblY + 34;
+    let sumArea = 0, sumProd = 0;
+
+    sortedTalhaoKeys.forEach((tKey, idx) => {
+        if (tY > 1050) return;
+
+        let data = talhaoMap[tKey];
+        let avgDoseItem = data.area > 0 ? (data.totalProd / data.area) : 0;
+        let prodTon = unit === 'kg_ha' ? (data.totalProd / 1000) : data.totalProd;
+
+        sumArea += data.area;
+        sumProd += data.totalProd;
+
+        ctx.fillStyle = idx % 2 === 0 ? "#FFFFFF" : "#FEF3C7";
+        ctx.fillRect(tblX, tY, tblW, 20);
+
+        ctx.strokeStyle = "#F3F4F6";
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(tblX, tY, tblW, 20);
+
+        ctx.fillStyle = "#1E293B";
+        ctx.font = "10px Helvetica, Arial";
+        ctx.fillText(tKey, tblX + 40, tY + 14);
+        ctx.fillText(`${Math.round(data.area)}`, tblX + 120, tY + 14);
+        ctx.fillText(`${formatDisplayValue(prodTon)}`, tblX + 220, tY + 14);
+        ctx.fillText(`${Math.round(avgDoseItem)}`, tblX + 315, tY + 14);
+
+        tY += 20;
+    });
+
+    ctx.fillStyle = "#0F172A";
+    ctx.fillRect(tblX, tY, tblW, 26);
+
+    let grandAvgDose = sumArea > 0 ? (sumProd / sumArea) : 0;
+    let grandProdTon = unit === 'kg_ha' ? (sumProd / 1000) : sumProd;
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 11px Helvetica, Arial";
+    ctx.fillText("Total Geral", tblX + 40, tY + 17);
+    
+    ctx.fillStyle = "#34D399";
+    ctx.font = "bold 11px Helvetica, Arial";
+    ctx.fillText(`${Math.round(sumArea)}`, tblX + 120, tY + 17);
+    ctx.fillText(`${Math.round(grandProdTon)}`, tblX + 220, tY + 17);
+    ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 315, tY + 17);
+
+    ctx.textAlign = "left";
+
+    ctx.fillStyle = "#64748B";
+    ctx.font = "14px Helvetica, Arial";
+    ctx.fillText("www.origens.agr.br", 50, canvas.height - 35);
+    ctx.textAlign = "right";
+    ctx.fillText("Escala Automática | Sistema WGS 84", canvas.width - 50, canvas.height - 35);
+
+    return canvas.toDataURL('image/jpeg', 0.98);
+}
+
+function generateVRatePDF() {
+    if (!vrateProcessedData.length) { 
+        alert('Processe primeiro a planilha de prescrição para gerar o laudo PDF!'); 
+        return; 
+    }
+    const farmKey = document.getElementById('vrate-sel-farm').value;
+    const farmInfo = farmsDatabase[farmKey] || { name: 'Fazenda' };
+    const product = document.getElementById('vrate-product').value;
+    const unit = document.getElementById('vrate-unit').value;
+
+    const imgData = drawVRateCanvas(farmInfo, product, unit);
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+    pdf.save(`Laudo_Prescricao_${product}_${farmInfo.name.replace(/\s+/g, '_')}.pdf`);
+}
     </script>
 </body>
 </html>
