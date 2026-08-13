@@ -120,7 +120,7 @@
                             <i class="fa-solid fa-wheat-awn text-emerald-400"></i><span>Sementes & Plantio TV</span>
                         </button>
 
-                        <!-- NOVO MÓDULO: AMOSTRAGEM DE SOLO -->
+                        <!-- MÓDULO: AMOSTRAGEM DE SOLO -->
                         <button onclick="switchTab('sampling')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800" id="tab-sampling">
                             <i class="fa-solid fa-vial-circle-check text-blue-400"></i><span>Amostragem de Solo</span>
                         </button>
@@ -243,7 +243,7 @@
                                 </div>
                             </div>
 
-                            <!-- LISTA COMPLETA DOS PARÂMETROS DE SOLO -->
+                            <!-- PARÂMETROS DE SOLO -->
                             <div>
                                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Parâmetro de Solo</label>
                                 <select id="sel-param" onchange="updateGISMap()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-sm text-slate-800">
@@ -584,14 +584,14 @@
                         </div>
                     </div>
 
-                    <!-- CARDS DE KPI (DASHBOARD) -->
+                    <!-- CARDS DE KPI (DASHBOARD) - LEITURA DIRETA DO CABEÇALHO CONSOLIDADO -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
                             <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-700 text-xl font-bold">
                                 <i class="fa-solid fa-map-location-dot"></i>
                             </div>
                             <div>
-                                <span class="text-[11px] font-bold uppercase text-slate-400 block">Total a Coletar</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-400 block">ha A COLETAR</span>
                                 <span id="kpi-ha-total" class="text-xl font-black text-slate-900">0,00 ha</span>
                             </div>
                         </div>
@@ -601,7 +601,7 @@
                                 <i class="fa-solid fa-circle-check"></i>
                             </div>
                             <div>
-                                <span class="text-[11px] font-bold uppercase text-slate-400 block">ha Coletados</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-400 block">ha COLETADOS</span>
                                 <span id="kpi-ha-coletados" class="text-xl font-black text-emerald-600">0,00 ha</span>
                             </div>
                         </div>
@@ -611,7 +611,7 @@
                                 <i class="fa-solid fa-clock"></i>
                             </div>
                             <div>
-                                <span class="text-[11px] font-bold uppercase text-slate-400 block">ha Pendentes</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-400 block">ha PENDENTES</span>
                                 <span id="kpi-ha-pendentes" class="text-xl font-black text-amber-600">0,00 ha</span>
                             </div>
                         </div>
@@ -621,7 +621,7 @@
                                 <i class="fa-solid fa-chart-pie"></i>
                             </div>
                             <div>
-                                <span class="text-[11px] font-bold uppercase text-slate-400 block">Progresso Geral</span>
+                                <span class="text-[11px] font-bold uppercase text-slate-400 block">PROGRESSO GERAL</span>
                                 <span id="kpi-pct-geral" class="text-xl font-black text-blue-600">0,00%</span>
                             </div>
                         </div>
@@ -847,22 +847,37 @@
             } catch (e) { console.error(e); }
         }
 
+        // TRAVA RIGOROSA DE SEGURANÇA POR E-MAIL
         async function checkUserAuthorization() {
             if (!currentUser) return;
             const userEmail = currentUser.email.toLowerCase();
             const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
 
-            if (adminEmails.includes(userEmail)) { currentUserRole = "admin"; }
-            else if (userEmail.endsWith("@origens.agr.br")) { currentUserRole = "client"; currentUserAllowedFarms = ["all"]; }
-            else {
+            if (adminEmails.includes(userEmail)) { 
+                currentUserRole = "admin"; 
+            } else if (userEmail.endsWith("@origens.agr.br")) { 
+                currentUserRole = "client"; 
+                currentUserAllowedFarms = ["all"]; 
+            } else {
                 try {
                     const userDoc = await db.collection("users").doc(userEmail).get();
                     if (userDoc.exists) {
                         const userData = userDoc.data();
                         currentUserRole = userData.role || "client";
                         currentUserAllowedFarms = userData.farms || [];
-                    } else { alert("Acesso pendente."); await auth.signOut(); return; }
-                } catch (err) { console.error(err); }
+                    } else { 
+                        alert("Acesso restrito à equipe Origens ou usuários autorizados pelo administrador!"); 
+                        await auth.signOut(); 
+                        showSection('landing');
+                        return; 
+                    }
+                } catch (err) { 
+                    console.error(err); 
+                    alert("Erro ao validar permissões na nuvem.");
+                    await auth.signOut();
+                    showSection('landing');
+                    return;
+                }
             }
 
             document.getElementById('landing-section').classList.add('hidden');
@@ -1335,7 +1350,7 @@
                 if (el) el.classList.add('hidden');
                 if (btn) btn.classList.remove('bg-slate-800', 'text-white');
             });
-            
+
             const activeContent = document.getElementById(`content-${tab}`);
             const activeBtn = document.getElementById(`tab-${tab}`);
             if (activeContent) activeContent.classList.remove('hidden');
@@ -2242,7 +2257,7 @@
             }
         }
 
-        // LEITURA E PROCESSAMENTO INDEPENDENTE DE PLANILHAS (DOSES DE SEMENTES E/OU CULTIVARES)
+        // PROCESSAMENTO DE PLANILHAS INDEPENDENTES (DOSES DE SEMENTES E/OU CULTIVARES)
         function processSeedsExcel() {
             const farmKey = document.getElementById('seeds-sel-farm').value;
             const fileInput = document.getElementById('seeds-excel-file');
@@ -3330,8 +3345,6 @@
             samplingRawRows = [];
             let solicitantesSet = new Set();
 
-            let haTotalGeral = 0, haColetadosGeral = 0, haPendentesGeral = 0;
-
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
@@ -3339,11 +3352,33 @@
                 // Parser simples respeitando aspas de CSV
                 const cols = line.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
 
-                // Identifica linhas de dados (ignorando cabeçalhos e totais)
                 const solicitante = cols[0] || '';
                 const fazenda = cols[1] || '';
 
-                if (!solicitante || solicitante.toUpperCase().includes('SOLICITANTE') || solicitante.toUpperCase().includes('CONFERE')) continue;
+                // LEITURA DIRETA DA LINHA 2 (CABEÇALHO CINZA DE TOTAIS DA PLANILHA)
+                if (i === 1 || solicitante.toUpperCase().includes('CONFERE') || (cols[2] && cols[2].toUpperCase().includes('A COLETAR'))) {
+                    const haToColHeader = parseNumber(cols[2]) || 0;
+                    const haColHeader = parseNumber(cols[3]) || 0;
+                    const haPendHeader = parseNumber(cols[4]) || 0;
+                    
+                    let pctColHeaderStr = cols[5] || '0%';
+                    let pctColHeaderNum = parseFloat(pctColHeaderStr.replace('%', '').replace(',', '.')) || 0;
+
+                    if (haToColHeader > 0) {
+                        document.getElementById('kpi-ha-total').innerText = `${haToColHeader.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+                        document.getElementById('kpi-ha-coletados').innerText = `${haColHeader.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+                        document.getElementById('kpi-ha-pendentes').innerText = `${haPendHeader.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
+                        document.getElementById('kpi-pct-geral').innerText = `${pctColHeaderStr}`;
+
+                        const progressBar = document.getElementById('sampling-progress-bar');
+                        const progressText = document.getElementById('sampling-progress-text');
+                        if (progressBar) progressBar.style.width = `${Math.min(pctColHeaderNum, 100)}%`;
+                        if (progressText) progressText.innerText = `${pctColHeaderStr} Concluído da Safra`;
+                    }
+                    continue;
+                }
+
+                if (!solicitante || solicitante.toUpperCase().includes('SOLICITANTE')) continue;
 
                 const haColetar = parseNumber(cols[2]) || 0;
                 const haColetados = parseNumber(cols[3]) || 0;
@@ -3364,25 +3399,8 @@
                     });
 
                     if (solicitante) solicitantesSet.add(solicitante);
-
-                    haTotalGeral += haColetar;
-                    haColetadosGeral += haColetados;
-                    haPendentesGeral += haPendentes;
                 }
             }
-
-            // Atualizar KPIs do Dashboard
-            document.getElementById('kpi-ha-total').innerText = `${Math.round(haTotalGeral).toLocaleString('pt-BR')} ha`;
-            document.getElementById('kpi-ha-coletados').innerText = `${Math.round(haColetadosGeral).toLocaleString('pt-BR')} ha`;
-            document.getElementById('kpi-ha-pendentes').innerText = `${Math.round(haPendentesGeral).toLocaleString('pt-BR')} ha`;
-
-            let pctGeral = haTotalGeral > 0 ? ((haColetadosGeral / haTotalGeral) * 100) : 0;
-            document.getElementById('kpi-pct-geral').innerText = `${pctGeral.toFixed(1)}%`;
-
-            const progressBar = document.getElementById('sampling-progress-bar');
-            const progressText = document.getElementById('sampling-progress-text');
-            if (progressBar) progressBar.style.width = `${Math.min(pctGeral, 100)}%`;
-            if (progressText) progressText.innerText = `${pctGeral.toFixed(1)}% Concluído da Safra`;
 
             // Atualizar Filtro de Solicitantes
             const selSol = document.getElementById('sampling-filter-solicitante');
