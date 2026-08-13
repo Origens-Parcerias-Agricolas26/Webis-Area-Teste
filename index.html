@@ -483,6 +483,10 @@
                                     <label class="block text-[11px] font-bold text-slate-700 mb-1">Planilha de Doses de Sementes (.xlsx)</label>
                                     <input type="file" id="seeds-excel-file" accept=".xlsx" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-200 file:text-emerald-900">
                                 </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Planilha de Cultivares / Variedades (.xlsx) - Opcional</label>
+                                    <input type="file" id="seeds-cultivar-excel-file" accept=".xlsx" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-200 file:text-emerald-900">
+                                </div>
                                 <button onclick="processSeedsExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition-all">
                                     Gerar Prescrição de Plantio
                                 </button>
@@ -1957,7 +1961,7 @@
         }
 
         // =========================================================================
-        // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES
+        // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES (SUPORTE A DOLS PLANILHAS SEPARADAS)
         // =========================================================================
         function initSeedsMap() {
             if (!seedsMap) {
@@ -2107,9 +2111,11 @@
             }
         }
 
+        // SUPORTE A PROCESSAR DOLS ARCHIVOS EXCEL SEPARADOS (DOSES + CULTIVARES)
         function processSeedsExcel() {
             const farmKey = document.getElementById('seeds-sel-farm').value;
             const fileInput = document.getElementById('seeds-excel-file');
+            const cultivarFileInput = document.getElementById('seeds-cultivar-excel-file');
             const shpInput = document.getElementById('seeds-shp-file');
             const crop = document.getElementById('seeds-crop').value;
             const unit = document.getElementById('seeds-unit').value;
@@ -2120,20 +2126,50 @@
             const executeSeedsLogic = (targetGeoJSON) => {
                 seedsCustomGeoJSON = targetGeoJSON;
 
+                // Função auxiliar para ler planilha de cultivares separada se houver
+                const loadCultivarFile = () => {
+                    return new Promise((resolve) => {
+                        if (cultivarFileInput && cultivarFileInput.files.length) {
+                            const cReader = new FileReader();
+                            cReader.onload = function(cEvt) {
+                                const cWorkbook = XLSX.read(cEvt.target.result, { type: 'binary' });
+                                const cSheet = cWorkbook.Sheets[cWorkbook.SheetNames[0]];
+                                const cRows = XLSX.utils.sheet_to_json(cSheet);
+                                let cMap = {};
+                                cRows.forEach(cr => {
+                                    let rawSub = cr.Subs || cr.SUBS || cr.subs || cr.Subdivisao || cr.Talhao || cr.TALHAO || cr.Gleba;
+                                    let rawCultivar = cr.Cultivar || cr.CULTIVAR || cr.Variedade || cr.VARIEDADE || cr.Hibrido || cr.Material;
+                                    if (rawSub && rawCultivar) {
+                                        cMap[cleanString(rawSub)] = String(rawCultivar).trim();
+                                    }
+                                });
+                                resolve(cMap);
+                            };
+                            cReader.readAsBinaryString(cultivarFileInput.files[0]);
+                        } else {
+                            resolve({});
+                        }
+                    });
+                };
+
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     const workbook = XLSX.read(e.target.result, { type: 'binary' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet);
 
+                    const separateCultivarMap = await loadCultivarFile();
+
                     seedsDoseMap = {};
                     rows.forEach(r => {
                         let rawSub = r.Subs || r.SUBS || r.subs || r.Subdivisao || r.Talhao || r.TALHAO || r.Gleba;
-                        let rawCultivar = r.Cultivar || r.CULTIVAR || r.Variedade || r.VARIEDADE || r.Hibrido || r.Material || 'Padrão';
                         if (rawSub) {
                             let subKey = cleanString(rawSub);
                             let rawDose = r.Sementes || r.SEMENTES || r.Doses || r.DOSES || r.Populacao || r.POPULACAO || r.Dose || r.DOSE;
                             
+                            // Prioridade: Planilha de Cultivares Separada > Coluna da Planilha Principal > 'Padrão'
+                            let rawCultivar = separateCultivarMap[subKey] || r.Cultivar || r.CULTIVAR || r.Variedade || r.VARIEDADE || r.Hibrido || r.Material || 'Padrão';
+
                             if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
                                 let doseVal = parseNumber(rawDose);
                                 if (doseVal !== null) {
@@ -2211,7 +2247,7 @@
             }
         }
 
-        // LAUDO PDF DA PRESCRIÇÃO DE SEMENTES (SUPORTE A MODO DOSE E MODO CULTIVAR EXCLUSIVO)
+        // LAUDO PDF DA PRESCRIÇÃO DE SEMENTES
         function drawSeedsCanvas(farmInfo, crop, unit, pdfMode = 'dose') {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -2228,7 +2264,6 @@
             ctx.lineWidth = 10;
             ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-            // CABEÇALHO SUPERIOR
             ctx.fillStyle = "#1E293B";
             ctx.font = "bold 16px Helvetica, Arial";
             ctx.textAlign = "left";
@@ -2403,7 +2438,6 @@
                     currY += 26;
                 });
 
-                // RESUMO DA CULTIVAR LOGO ABAIXO DA LEGENDA
                 const resY = legY + legH + 15;
                 const resH = 175;
 
@@ -3071,7 +3105,7 @@
                     shp(e.target.result).then(function(newGeojson) {
                         let finalGeoJSON = Array.isArray(newGeojson) ? newGeojson[0] : newGeojson;
                         
-                        if (currentFarm.geojson && currentFarm.geojson.features && currentFarm.geojson.features.length) {
+                        if (currentFarm.geojson && currentFarm.geojson.features && currentGeoJSON.features.length) {
                             const oldFeatureMap = {};
                             currentFarm.geojson.features.forEach(oldF => {
                                 let fSub = oldF.properties ? (oldF.properties.Subs || oldF.properties.Subdivisao || oldF.properties.Talhao) : null;
