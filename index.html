@@ -1139,8 +1139,10 @@
 
             if (tab === 'vrate') {
                 initVRateMap();
+                setTimeout(() => { if (vrateMap) { vrateMap.invalidateSize(); seedsChangeFarm(); } }, 100);
             } else if (tab === 'seeds') {
                 initSeedsMap();
+                setTimeout(() => { if (seedsMap) { seedsMap.invalidateSize(); seedsChangeFarm(); } }, 100);
             } else if (tab === 'maps') {
                 setTimeout(() => {
                     if (mapLeft) mapLeft.invalidateSize();
@@ -1252,7 +1254,6 @@
             populateTalhaoSelector();
         }
 
-        // SINCRONIZAÇÃO ENTRE MÓDULOS AO MUDAR A FAZENDA
         function changeActiveFarm(sourceSelectId) {
             const selectedVal = document.getElementById(sourceSelectId).value;
             ['sel-farm', 'vrate-sel-farm', 'seeds-sel-farm'].forEach(id => {
@@ -2143,10 +2144,12 @@
                     let legendHTML = seedsUniqueDoses.map((d) => {
                         let colorIdx = seedsAscDoses.indexOf(d);
                         let hexColor = rdYlGnPalette[colorIdx];
+                        let itemCultivar = seedsProcessedData.find(x => Math.round(x.dose) === d)?.cultivar || '';
+                        let cultivarStr = itemCultivar ? ` - <i>${itemCultivar}</i>` : '';
                         return `
                             <div class="flex items-center gap-2">
                                 <div class="w-3.5 h-3.5 rounded shadow-sm border border-slate-300" style="background:${d > 0 ? hexColor : '#f1f5f9'}"></div>
-                                <span><b>${d}</b> ${unitStr}</span>
+                                <span><b>${d}</b> ${unitStr}${cultivarStr}</span>
                             </div>
                         `;
                     }).join('');
@@ -2173,7 +2176,7 @@
             }
         }
 
-        // LAUDO PDF DA PRESCRIÇÃO DE SEMENTES
+        // LAUDO PDF DA PRESCRIÇÃO DE SEMENTES (SEM SOBREPOSIÇÃO NO TÍTULO & COM CULTIVAR NA LEGENDA)
         function drawSeedsCanvas(farmInfo, crop, unit) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -2190,19 +2193,20 @@
             ctx.lineWidth = 10;
             ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
+            // CABEÇALHO SUPERIOR FORMATADO SEM SOBREPOSIÇÕES
             ctx.fillStyle = "#1E293B";
-            ctx.font = "bold 18px Helvetica, Arial";
+            ctx.font = "bold 16px Helvetica, Arial";
             ctx.textAlign = "left";
-            ctx.fillText("ORIGENS Parcerias Agrícolas | Brasnorte - MT", 50, 60);
-
-            ctx.fillStyle = "#1E293B";
-            ctx.font = "bold 26px Helvetica, Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(`LAUDO DE PLANTIO - TAXA VARIÁVEL DE SEMENTES (${crop.toUpperCase()})`, 800, 60);
+            ctx.fillText("ORIGENS Parcerias Agrícolas | Brasnorte - MT", 50, 55);
 
             ctx.fillStyle = "#15803D";
-            ctx.font = "bold 18px Helvetica, Arial";
-            ctx.fillText(`PROPRIEDADE: ${farmInfo.name.toUpperCase()} | UNIDADE: (${unitStr})`, 800, 95);
+            ctx.font = "bold 22px Helvetica, Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(`LAUDO DE PLANTIO - TAXA VARIÁVEL DE SEMENTES (${crop.toUpperCase()})`, 800, 55);
+
+            ctx.fillStyle = "#1E293B";
+            ctx.font = "bold 14px Helvetica, Arial";
+            ctx.fillText(`PROPRIEDADE: ${farmInfo.name.toUpperCase()} | UNIDADE: (${unitStr})`, 800, 85);
 
             ctx.textAlign = "left";
 
@@ -2242,7 +2246,7 @@
                     const minY = Math.min(...allPts.map(p => p[1]));
                     const maxY = Math.max(...allPts.map(p => p[1]));
 
-                    const mapX = 50, mapY = 120, mapW = 900, mapH = 980;
+                    const mapX = 50, mapY = 110, mapW = 900, mapH = 990;
 
                     const centerLat = (minY + maxY) / 2;
                     const cosScale = Math.cos(centerLat * Math.PI / 180);
@@ -2318,12 +2322,12 @@
                 }
             }
 
-            // LEGENDA DE POPULAÇÃO DE SEMENTES NO PDF
-            const legX = 970, legY = 120;
+            // LEGENDA DE POPULAÇÃO DE SEMENTES NO PDF (COM CULTIVAR)
+            const legX = 970, legY = 110;
             const legW = 210;
 
             const maxVisibleDoses = Math.min(seedsUniqueDoses.length, 6);
-            const legH = 50 + (maxVisibleDoses * 26) + 30;
+            const legH = 50 + (maxVisibleDoses * 28) + 20;
 
             ctx.fillStyle = "#F8FAFC";
             ctx.fillRect(legX, legY, legW, legH);
@@ -2332,38 +2336,41 @@
             ctx.strokeRect(legX, legY, legW, legH);
 
             ctx.fillStyle = "#0F172A";
-            ctx.font = "bold 15px Helvetica, Arial";
-            ctx.fillText("POPULAÇÃO DE PLANTIO", legX + 15, legY + 25);
+            ctx.font = "bold 14px Helvetica, Arial";
+            ctx.fillText("POPULAÇÃO DE PLANTIO", legX + 12, legY + 24);
 
-            let currY = legY + 52;
+            let currY = legY + 50;
             seedsUniqueDoses.slice(0, 6).forEach((d) => {
                 let colorIdx = seedsAscDoses.indexOf(d);
                 let hexColor = rdYlGnPalette[colorIdx];
+                let itemCultivar = seedsProcessedData.find(x => Math.round(x.dose) === d)?.cultivar || '';
 
                 ctx.fillStyle = hexColor;
-                ctx.fillRect(legX + 15, currY - 12, 16, 16);
+                ctx.fillRect(legX + 12, currY - 12, 16, 16);
                 ctx.strokeStyle = "#64748B";
                 ctx.lineWidth = 1;
-                ctx.strokeRect(legX + 15, currY - 12, 16, 16);
+                ctx.strokeRect(legX + 12, currY - 12, 16, 16);
 
                 ctx.fillStyle = "#334155";
-                ctx.font = "bold 12px Helvetica, Arial";
-                ctx.fillText(`${Math.round(d)} ${unitStr}`, legX + 38, currY);
+                ctx.font = "bold 10px Helvetica, Arial";
+                let textDose = `${Math.round(d)} ${unitStr}`;
+                if (itemCultivar) textDose += ` (${itemCultivar.substring(0, 10)})`;
+                ctx.fillText(textDose, legX + 34, currY);
                 currY += 26;
             });
 
             ctx.fillStyle = "#f1f5f9";
-            ctx.fillRect(legX + 15, currY - 12, 16, 16);
+            ctx.fillRect(legX + 12, currY - 12, 16, 16);
             ctx.strokeStyle = "#64748B";
             ctx.lineWidth = 1;
-            ctx.strokeRect(legX + 15, currY - 12, 16, 16);
+            ctx.strokeRect(legX + 12, currY - 12, 16, 16);
 
             ctx.fillStyle = "#334155";
-            ctx.font = "bold 12px Helvetica, Arial";
-            ctx.fillText(`Sem Plantio (0 ${unitStr})`, legX + 38, currY);
+            ctx.font = "bold 10px Helvetica, Arial";
+            ctx.fillText(`Sem Plantio (0 ${unitStr})`, legX + 34, currY);
 
             // CAIXA DE RESUMO DO PLANTIO
-            const resY = legY + legH + 20;
+            const resY = legY + legH + 15;
             const resH = 175;
 
             ctx.fillStyle = "#0F172A";
@@ -2410,7 +2417,7 @@
             ctx.textAlign = "left";
 
             // MONTAGEM DA TABELA RESUMO POR CAMPO COM CULTIVAR
-            const tblX = 1195, tblY = 120;
+            const tblX = 1195, tblY = 110;
             const tblW = 365;
 
             let talhaoMap = {};
@@ -2942,7 +2949,7 @@
                     shp(e.target.result).then(function(newGeojson) {
                         let finalGeoJSON = Array.isArray(newGeojson) ? newGeojson[0] : newGeojson;
                         
-                        if (currentFarm.geojson && currentFarm.geojson.features && currentFarm.geojson.features.length) {
+                        if (currentFarm.geojson && currentFarm.geojson.features && currentGeoJSON.features.length) {
                             const oldFeatureMap = {};
                             currentFarm.geojson.features.forEach(oldF => {
                                 let fSub = oldF.properties ? (oldF.properties.Subs || oldF.properties.Subdivisao || oldF.properties.Talhao) : null;
