@@ -703,11 +703,71 @@
 
         let seedsProcessedData = [];
         let seedsDoseMap = {};
+        let seedsCultivarMap = {};
         let seedsUniqueDoses = [];
         let seedsUniqueCultivars = [];
         let seedsCustomGeoJSON = null;
 
         const CULTIVAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#4f46e5', '#059669', '#e11d48'];
+
+        function showSection(sec) {
+            if (sec === 'landing') {
+                document.getElementById('landing-section').classList.remove('hidden');
+                document.getElementById('saas-section').classList.add('hidden');
+            }
+        }
+
+        async function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                const result = await auth.signInWithPopup(provider);
+                currentUser = result.user;
+                await checkUserAuthorization();
+            } catch (error) { alert("Erro no login: " + error.message); }
+        }
+
+        async function logout() {
+            try {
+                await auth.signOut();
+                currentUser = null;
+                showSection('landing');
+            } catch (e) { console.error(e); }
+        }
+
+        async function checkUserAuthorization() {
+            if (!currentUser) return;
+            const userEmail = currentUser.email.toLowerCase();
+            const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
+
+            if (adminEmails.includes(userEmail)) { currentUserRole = "admin"; }
+            else if (userEmail.endsWith("@origens.agr.br")) { currentUserRole = "client"; currentUserAllowedFarms = ["all"]; }
+            else {
+                try {
+                    const userDoc = await db.collection("users").doc(userEmail).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        currentUserRole = userData.role || "client";
+                        currentUserAllowedFarms = userData.farms || [];
+                    } else { alert("Acesso pendente."); await auth.signOut(); return; }
+                } catch (err) { console.error(err); }
+            }
+
+            document.getElementById('landing-section').classList.add('hidden');
+            document.getElementById('saas-section').classList.remove('hidden');
+            document.getElementById('user-display-name').innerText = currentUser.displayName || currentUser.email;
+            document.getElementById('user-display-email').innerText = currentUser.email;
+
+            const roleBadge = document.getElementById('user-display-role');
+            if (currentUserRole === 'admin') {
+                roleBadge.innerText = "Modo Edição (Admin)";
+                roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
+                document.getElementById('admin-only-menu').classList.remove('hidden');
+                document.getElementById('upload-box-admin').classList.remove('hidden');
+            }
+
+            await loadCloudData();
+            initLeafletMap();
+        }
 
         function getRdYlGnPalette(n) {
             const colors = ['#d73027', '#f46d43', '#fdae61', '#fee08b', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850'];
@@ -886,50 +946,6 @@
             } catch(e) {
                 return { "type": "FeatureCollection", "features": [] };
             }
-        }
-
-        async function loginWithGoogle() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            try {
-                const result = await auth.signInWithPopup(provider);
-                currentUser = result.user;
-                await checkUserAuthorization();
-            } catch (error) { alert("Erro no login: " + error.message); }
-        }
-
-        async function checkUserAuthorization() {
-            if (!currentUser) return;
-            const userEmail = currentUser.email.toLowerCase();
-            const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
-
-            if (adminEmails.includes(userEmail)) { currentUserRole = "admin"; }
-            else if (userEmail.endsWith("@origens.agr.br")) { currentUserRole = "client"; currentUserAllowedFarms = ["all"]; }
-            else {
-                try {
-                    const userDoc = await db.collection("users").doc(userEmail).get();
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
-                        currentUserRole = userData.role || "client";
-                        currentUserAllowedFarms = userData.farms || [];
-                    } else { alert("Acesso pendente."); await auth.signOut(); return; }
-                } catch (err) { console.error(err); }
-            }
-
-            document.getElementById('landing-section').classList.add('hidden');
-            document.getElementById('saas-section').classList.remove('hidden');
-            document.getElementById('user-display-name').innerText = currentUser.displayName || currentUser.email;
-            document.getElementById('user-display-email').innerText = currentUser.email;
-
-            const roleBadge = document.getElementById('user-display-role');
-            if (currentUserRole === 'admin') {
-                roleBadge.innerText = "Modo Edição (Admin)";
-                roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
-                document.getElementById('admin-only-menu').classList.remove('hidden');
-                document.getElementById('upload-box-admin').classList.remove('hidden');
-            }
-
-            await loadCloudData();
-            initLeafletMap();
         }
 
         async function loadCloudData() {
@@ -1143,6 +1159,62 @@
             items.forEach(chk => chk.checked = masterChk.checked);
         }
 
+        function populateFarmSelector() {
+            const farmSelect = document.getElementById('sel-farm');
+            const vrateSelect = document.getElementById('vrate-sel-farm');
+            const seedsSelect = document.getElementById('seeds-sel-farm');
+
+            if (farmSelect) farmSelect.innerHTML = '';
+            if (vrateSelect) vrateSelect.innerHTML = '';
+            if (seedsSelect) seedsSelect.innerHTML = '';
+
+            let keysToDisplay = Object.keys(farmsDatabase);
+            if (currentUserRole !== 'admin' && !currentUserAllowedFarms.includes('all')) {
+                keysToDisplay = keysToDisplay.filter(k => currentUserAllowedFarms.includes(k));
+            }
+
+            keysToDisplay.forEach(key => {
+                if (farmsDatabase[key]) {
+                    const farm = farmsDatabase[key];
+                    if (farmSelect) farmSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
+                    if (vrateSelect) vrateSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
+                    if (seedsSelect) seedsSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
+                }
+            });
+
+            const checkboxContainer = document.getElementById('new-farm-checkboxes');
+            if (checkboxContainer) {
+                checkboxContainer.innerHTML = Object.keys(farmsDatabase).map(k => `
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                        <input type="checkbox" name="chk-user-farms" value="${k}" class="chk-farm-item h-4 w-4 text-origens-green rounded">
+                        <span>${farmsDatabase[k].name} ${farmsDatabase[k].producer ? `(${farmsDatabase[k].producer})` : ''} - ${farmsDatabase[k].location}</span>
+                    </label>
+                `).join('');
+            }
+
+            populateSafraSelector();
+            populateTalhaoSelector();
+        }
+
+        function changeActiveFarm(sourceSelectId) {
+            const selectedVal = document.getElementById(sourceSelectId).value;
+            ['sel-farm', 'vrate-sel-farm', 'seeds-sel-farm'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.value !== selectedVal) el.value = selectedVal;
+            });
+
+            populateSafraSelector();
+            populateTalhaoSelector();
+
+            if (document.getElementById('content-seeds') && !document.getElementById('content-seeds').classList.contains('hidden')) {
+                seedsChangeFarm();
+            } else if (document.getElementById('content-vrate') && !document.getElementById('content-vrate').classList.contains('hidden')) {
+                vrateChangeFarm();
+            } else {
+                updateGISMap();
+            }
+        }
+
         function switchTab(tab) {
             ['maps', 'vrate', 'seeds', 'users'].forEach(t => {
                 const el = document.getElementById(`content-${t}`);
@@ -1231,62 +1303,6 @@
 
             if (mapLeft) mapLeft.invalidateSize();
             if (mapRight) mapRight.invalidateSize();
-        }
-
-        function populateFarmSelector() {
-            const farmSelect = document.getElementById('sel-farm');
-            const vrateSelect = document.getElementById('vrate-sel-farm');
-            const seedsSelect = document.getElementById('seeds-sel-farm');
-
-            farmSelect.innerHTML = '';
-            vrateSelect.innerHTML = '';
-            if (seedsSelect) seedsSelect.innerHTML = '';
-
-            let keysToDisplay = Object.keys(farmsDatabase);
-            if (currentUserRole !== 'admin' && !currentUserAllowedFarms.includes('all')) {
-                keysToDisplay = keysToDisplay.filter(k => currentUserAllowedFarms.includes(k));
-            }
-
-            keysToDisplay.forEach(key => {
-                if (farmsDatabase[key]) {
-                    const farm = farmsDatabase[key];
-                    farmSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
-                    vrateSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
-                    if (seedsSelect) seedsSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
-                }
-            });
-
-            const checkboxContainer = document.getElementById('new-farm-checkboxes');
-            if (checkboxContainer) {
-                checkboxContainer.innerHTML = Object.keys(farmsDatabase).map(k => `
-                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
-                        <input type="checkbox" name="chk-user-farms" value="${k}" class="chk-farm-item h-4 w-4 text-origens-green rounded">
-                        <span>${farmsDatabase[k].name} ${farmsDatabase[k].producer ? `(${farmsDatabase[k].producer})` : ''} - ${farmsDatabase[k].location}</span>
-                    </label>
-                `).join('');
-            }
-
-            populateSafraSelector();
-            populateTalhaoSelector();
-        }
-
-        function changeActiveFarm(sourceSelectId) {
-            const selectedVal = document.getElementById(sourceSelectId).value;
-            ['sel-farm', 'vrate-sel-farm', 'seeds-sel-farm'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el && el.value !== selectedVal) el.value = selectedVal;
-            });
-
-            populateSafraSelector();
-            populateTalhaoSelector();
-
-            if (document.getElementById('content-seeds') && !document.getElementById('content-seeds').classList.contains('hidden')) {
-                seedsChangeFarm();
-            } else if (document.getElementById('content-vrate') && !document.getElementById('content-vrate').classList.contains('hidden')) {
-                vrateChangeFarm();
-            } else {
-                updateGISMap();
-            }
         }
 
         function populateSafraSelector() {
@@ -1961,7 +1977,7 @@
         }
 
         // =========================================================================
-        // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES (SUPORTE A DOLS PLANILHAS SEPARADAS)
+        // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES
         // =========================================================================
         function initSeedsMap() {
             if (!seedsMap) {
@@ -1991,7 +2007,7 @@
         }
 
         function seedsUpdateMap() {
-            if (!seedsMap || !seedsProcessedData.length) return;
+            if (!seedsMap || (!seedsProcessedData.length && !Object.keys(seedsCultivarMap).length)) return;
             const targetGeoJSON = seedsCustomGeoJSON || (farmsDatabase[document.getElementById('seeds-sel-farm').value] ? farmsDatabase[document.getElementById('seeds-sel-farm').value].geojson : null);
             if (!targetGeoJSON) return;
 
@@ -2020,26 +2036,25 @@
                 style: f => {
                     let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
                     let subClean = cleanString(rawSub);
-                    let doseObj = seedsDoseMap[subClean];
 
                     let color = '#f1f5f9';
                     let fillOpacity = 0.2;
 
-                    if (doseObj && doseObj.hasValue) {
-                        fillOpacity = 0.85;
-                        if (viewMode === 'cultivar') {
-                            color = cultivarColorMap[doseObj.cultivar] || '#16a34a';
-                        } else {
+                    if (viewMode === 'cultivar') {
+                        let cName = seedsCultivarMap[subClean];
+                        if (cName && cultivarColorMap[cName]) {
+                            color = cultivarColorMap[cName];
+                            fillOpacity = 0.85;
+                        }
+                    } else {
+                        let doseObj = seedsDoseMap[subClean];
+                        if (doseObj && doseObj.hasValue) {
+                            fillOpacity = 0.85;
                             if (doseObj.dose > 0 && doseColorMap[doseObj.dose]) color = doseColorMap[doseObj.dose];
                         }
                     }
 
-                    return { 
-                        fillColor: color, 
-                        fillOpacity: fillOpacity, 
-                        color: showBoundary ? '#15803d' : 'transparent', 
-                        weight: showBoundary ? 1.5 : 0 
-                    };
+                    return { fillColor: color, fillOpacity: fillOpacity, color: showBoundary ? '#15803d' : 'transparent', weight: showBoundary ? 1.5 : 0 };
                 },
                 onEachFeature: (f, layer) => {
                     let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
@@ -2048,7 +2063,7 @@
                     let dose = (doseObj && doseObj.hasValue) ? Math.round(doseObj.dose) : 0;
                     let subName = f.properties.Subs || f.properties.Subdivisao || 'Subdivisão';
                     let crop = document.getElementById('seeds-crop').value;
-                    let cultivar = (doseObj && doseObj.cultivar) ? doseObj.cultivar : 'Padrão';
+                    let cultivar = seedsCultivarMap[subClean] || 'Não Informada';
 
                     layer.bindPopup(`
                         <div class="p-1">
@@ -2088,30 +2103,28 @@
 
             if (viewMode === 'cultivar') {
                 legendTitle.innerText = "Cultivares / Variedades";
-                legendItems.innerHTML = seedsUniqueCultivars.map(c => `
+                legendItems.innerHTML = seedsUniqueCultivars.length ? seedsUniqueCultivars.map(c => `
                     <div class="flex items-center gap-2">
                         <div class="w-3.5 h-3.5 rounded shadow-sm border border-slate-300" style="background:${cultivarColorMap[c]}"></div>
                         <span><b>${c}</b></span>
                     </div>
-                `).join('');
+                `).join('') : '<span class="text-slate-400 italic">Importe a planilha de cultivares</span>';
             } else {
                 legendTitle.innerText = "População de Plantio";
-                legendItems.innerHTML = seedsUniqueDoses.map((d) => {
+                legendItems.innerHTML = seedsUniqueDoses.length ? seedsUniqueDoses.map((d) => {
                     let colorIdx = seedsAscDoses.indexOf(d);
                     let hexColor = rdYlGnPalette[colorIdx];
-                    let itemCultivar = seedsProcessedData.find(x => Math.round(x.dose) === d)?.cultivar || '';
-                    let cultivarStr = itemCultivar ? ` - <i>${itemCultivar}</i>` : '';
                     return `
                         <div class="flex items-center gap-2">
                             <div class="w-3.5 h-3.5 rounded shadow-sm border border-slate-300" style="background:${d > 0 ? hexColor : '#f1f5f9'}"></div>
-                            <span><b>${d}</b> ${unitStr}${cultivarStr}</span>
+                            <span><b>${d}</b> ${unitStr}</span>
                         </div>
                     `;
-                }).join('');
+                }).join('') : '<span class="text-slate-400 italic">Importe a planilha de doses</span>';
             }
         }
 
-        // SUPORTE A PROCESSAR DOLS ARCHIVOS EXCEL SEPARADOS (DOSES + CULTIVARES)
+        // LEITURA E PROCESSAMENTO INDEPENDENTE DE PLANILHAS
         function processSeedsExcel() {
             const farmKey = document.getElementById('seeds-sel-farm').value;
             const fileInput = document.getElementById('seeds-excel-file');
@@ -2121,115 +2134,123 @@
             const unit = document.getElementById('seeds-unit').value;
             const unitStr = unit === 'sem_ha' ? 'sem/ha' : (unit === 'mil_ha' ? 'mil sem/ha' : 'sem/m');
 
-            if (!fileInput.files.length) { alert('Por favor, selecione a planilha Excel com a prescrição de sementes!'); return; }
+            const hasDosesFile = fileInput && fileInput.files.length > 0;
+            const hasCultivarFile = cultivarFileInput && cultivarFileInput.files.length > 0;
+
+            if (!hasDosesFile && !hasCultivarFile) {
+                alert('Por favor, selecione pelo menos uma planilha (Doses de Sementes ou Cultivares)!');
+                return;
+            }
 
             const executeSeedsLogic = (targetGeoJSON) => {
                 seedsCustomGeoJSON = targetGeoJSON;
 
-                // Função auxiliar para ler planilha de cultivares separada se houver
-                const loadCultivarFile = () => {
+                // 1. Leitura independente da Planilha de Cultivares/Variedades
+                const processCultivarFile = () => {
                     return new Promise((resolve) => {
-                        if (cultivarFileInput && cultivarFileInput.files.length) {
+                        if (hasCultivarFile) {
                             const cReader = new FileReader();
                             cReader.onload = function(cEvt) {
                                 const cWorkbook = XLSX.read(cEvt.target.result, { type: 'binary' });
                                 const cSheet = cWorkbook.Sheets[cWorkbook.SheetNames[0]];
                                 const cRows = XLSX.utils.sheet_to_json(cSheet);
-                                let cMap = {};
+                                seedsCultivarMap = {};
                                 cRows.forEach(cr => {
                                     let rawSub = cr.Subs || cr.SUBS || cr.subs || cr.Subdivisao || cr.Talhao || cr.TALHAO || cr.Gleba;
                                     let rawCultivar = cr.Cultivar || cr.CULTIVAR || cr.Variedade || cr.VARIEDADE || cr.Hibrido || cr.Material;
                                     if (rawSub && rawCultivar) {
-                                        cMap[cleanString(rawSub)] = String(rawCultivar).trim();
+                                        seedsCultivarMap[cleanString(rawSub)] = String(rawCultivar).trim();
                                     }
                                 });
-                                resolve(cMap);
+                                seedsUniqueCultivars = Array.from(new Set(Object.values(seedsCultivarMap))).filter(c => c && c !== '');
+                                resolve();
                             };
                             cReader.readAsBinaryString(cultivarFileInput.files[0]);
-                        } else {
-                            resolve({});
-                        }
+                        } else { resolve(); }
                     });
                 };
 
-                const reader = new FileReader();
-                reader.onload = async function(e) {
-                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(sheet);
+                // 2. Leitura independente da Planilha de Doses
+                const processDosesFile = () => {
+                    return new Promise((resolve) => {
+                        if (hasDosesFile) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                                const rows = XLSX.utils.sheet_to_json(sheet);
 
-                    const separateCultivarMap = await loadCultivarFile();
+                                seedsDoseMap = {};
+                                rows.forEach(r => {
+                                    let rawSub = r.Subs || r.SUBS || r.subs || r.Subdivisao || r.Talhao || r.TALHAO || r.Gleba;
+                                    if (rawSub) {
+                                        let subKey = cleanString(rawSub);
+                                        let rawDose = r.Sementes || r.SEMENTES || r.Doses || r.DOSES || r.Populacao || r.POPULACAO || r.Dose || r.DOSE;
+                                        
+                                        if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
+                                            let doseVal = parseNumber(rawDose);
+                                            if (doseVal !== null) {
+                                                seedsDoseMap[subKey] = { dose: doseVal, hasValue: true };
+                                            }
+                                        } else {
+                                            seedsDoseMap[subKey] = { dose: 0, hasValue: false };
+                                        }
+                                    }
+                                });
 
-                    seedsDoseMap = {};
-                    rows.forEach(r => {
-                        let rawSub = r.Subs || r.SUBS || r.subs || r.Subdivisao || r.Talhao || r.TALHAO || r.Gleba;
-                        if (rawSub) {
-                            let subKey = cleanString(rawSub);
-                            let rawDose = r.Sementes || r.SEMENTES || r.Doses || r.DOSES || r.Populacao || r.POPULACAO || r.Dose || r.DOSE;
-                            
-                            // Prioridade: Planilha de Cultivares Separada > Coluna da Planilha Principal > 'Padrão'
-                            let rawCultivar = separateCultivarMap[subKey] || r.Cultivar || r.CULTIVAR || r.Variedade || r.VARIEDADE || r.Hibrido || r.Material || 'Padrão';
+                                let totalAreaCalculated = 0, totalSeedsAcc = 0, matchedCount = 0;
+                                seedsProcessedData = [];
 
-                            if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
-                                let doseVal = parseNumber(rawDose);
-                                if (doseVal !== null) {
-                                    seedsDoseMap[subKey] = { dose: doseVal, cultivar: rawCultivar, hasValue: true };
-                                }
-                            } else {
-                                seedsDoseMap[subKey] = { dose: 0, cultivar: rawCultivar, hasValue: false };
-                            }
-                        }
+                                seedsCustomGeoJSON.features.forEach(f => {
+                                    let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
+                                    let subClean = cleanString(rawSub);
+                                    let doseObj = seedsDoseMap[subClean];
+
+                                    let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
+
+                                    if (doseObj && doseObj.hasValue) {
+                                        totalAreaCalculated += area;
+                                        totalSeedsAcc += (doseObj.dose * area);
+                                        matchedCount++;
+
+                                        seedsProcessedData.push({ 
+                                            talhao: f.properties.Talhao || f.properties.TALHAO || 'N/A', 
+                                            subs: f.properties.Subs || f.properties.Subdivisao || 'Gleba', 
+                                            area: area, 
+                                            dose: doseObj.dose, 
+                                            total: (doseObj.dose * area),
+                                            hasValue: true
+                                        });
+                                    }
+                                });
+
+                                seedsUniqueDoses = Array.from(new Set(seedsProcessedData.map(d => Math.round(d.dose)))).sort((a,b) => b - a);
+
+                                document.getElementById('seeds-summary-box').classList.remove('hidden');
+                                document.getElementById('seeds-sum-crop').innerText = `${crop} (${unitStr})`;
+                                document.getElementById('seeds-sum-area').innerText = `${Math.round(totalAreaCalculated)} ha`;
+                                
+                                let avgDose = totalAreaCalculated > 0 ? (totalSeedsAcc / totalAreaCalculated) : 0;
+                                document.getElementById('seeds-sum-avg').innerText = `${Math.round(avgDose)} ${unitStr}`;
+                                
+                                let bagsCount = Math.round(totalSeedsAcc / (crop === 'Milho' ? 60000 : 5000000));
+                                document.getElementById('seeds-sum-total').innerText = `${Math.round(totalSeedsAcc).toLocaleString('pt-BR')} sementes (${bagsCount} sacas)`;
+
+                                resolve();
+                            };
+                            reader.readAsBinaryString(fileInput.files[0]);
+                        } else { resolve(); }
                     });
+                };
 
-                    let totalAreaCalculated = 0, totalSeedsAcc = 0, matchedCount = 0;
-                    seedsProcessedData = [];
-
-                    seedsCustomGeoJSON.features.forEach(f => {
-                        let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
-                        let subClean = cleanString(rawSub);
-                        let doseObj = seedsDoseMap[subClean];
-
-                        let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
-
-                        if (doseObj && doseObj.hasValue) {
-                            totalAreaCalculated += area;
-                            totalSeedsAcc += (doseObj.dose * area);
-                            matchedCount++;
-
-                            f.properties.Rate = doseObj.dose;
-                            f.properties.SEMENTES = doseObj.dose;
-                            f.properties.Cultura = crop;
-
-                            seedsProcessedData.push({ 
-                                talhao: f.properties.Talhao || f.properties.TALHAO || 'N/A', 
-                                subs: f.properties.Subs || f.properties.Subdivisao || 'Gleba', 
-                                cultivar: doseObj.cultivar,
-                                area: area, 
-                                dose: doseObj.dose, 
-                                total: (doseObj.dose * area),
-                                hasValue: true
-                            });
-                        }
-                    });
-
-                    seedsUniqueDoses = Array.from(new Set(seedsProcessedData.map(d => Math.round(d.dose)))).sort((a,b) => b - a);
-                    seedsUniqueCultivars = Array.from(new Set(seedsProcessedData.map(d => d.cultivar))).filter(c => c && c !== '');
-
+                Promise.all([processCultivarFile(), processDosesFile()]).then(() => {
+                    const viewModeSelect = document.getElementById('seeds-view-mode');
+                    if (!hasDosesFile && hasCultivarFile && viewModeSelect) {
+                        viewModeSelect.value = 'cultivar';
+                    }
                     seedsUpdateMap();
-
-                    document.getElementById('seeds-summary-box').classList.remove('hidden');
-                    document.getElementById('seeds-sum-crop').innerText = `${crop} (${unitStr})`;
-                    document.getElementById('seeds-sum-area').innerText = `${Math.round(totalAreaCalculated)} ha`;
-                    
-                    let avgDose = totalAreaCalculated > 0 ? (totalSeedsAcc / totalAreaCalculated) : 0;
-                    document.getElementById('seeds-sum-avg').innerText = `${Math.round(avgDose)} ${unitStr}`;
-                    
-                    let bagsCount = Math.round(totalSeedsAcc / (crop === 'Milho' ? 60000 : 5000000));
-                    document.getElementById('seeds-sum-total').innerText = `${Math.round(totalSeedsAcc).toLocaleString('pt-BR')} sementes (${bagsCount} sacas)`;
-
-                    alert(`Prescrição de sementes processada com sucesso!\nForam vinculadas ${matchedCount} áreas para o plantio de ${crop}.`);
-                };
-                reader.readAsBinaryString(fileInput.files[0]);
+                    alert("Dados de plantio carregados com sucesso!");
+                });
             };
 
             if (shpInput && shpInput.files.length) {
@@ -2238,7 +2259,7 @@
                     shp(e.target.result).then(function(newGeojson) {
                         let finalGeoJSON = Array.isArray(newGeojson) ? newGeojson[0] : newGeojson;
                         executeSeedsLogic(finalGeoJSON);
-                    }).catch(err => alert("Erro ao ler o Shapefile de sementes."));
+                    });
                 };
                 shpReader.readAsArrayBuffer(shpInput.files[0]);
             } else {
@@ -2246,8 +2267,7 @@
                 executeSeedsLogic(farmObj.geojson);
             }
         }
-
-        // LAUDO PDF DA PRESCRIÇÃO DE SEMENTES
+        // LAUDO PDF DA PRESCRIÇÃO DE SEMENTES OU CULTIVARES INDEPENDENTE
         function drawSeedsCanvas(farmInfo, crop, unit, pdfMode = 'dose') {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -2285,9 +2305,7 @@
             ctx.textAlign = "left";
 
             let doseMap = {};
-            seedsProcessedData.forEach(item => {
-                if (item.subs && item.hasValue) doseMap[cleanString(item.subs)] = item;
-            });
+            seedsProcessedData.forEach(item => { if (item.subs && item.hasValue) doseMap[cleanString(item.subs)] = item; });
 
             const seedsAscDoses = Array.from(new Set(seedsUniqueDoses)).sort((a, b) => a - b);
             const rdYlGnPalette = getRdYlGnPalette(seedsAscDoses.length);
@@ -2296,9 +2314,7 @@
             seedsAscDoses.forEach((d, i) => { doseColorMap[d] = rdYlGnPalette[i]; });
 
             let cultivarColorMap = {};
-            seedsUniqueCultivars.forEach((c, i) => {
-                cultivarColorMap[c] = CULTIVAR_COLORS[i % CULTIVAR_COLORS.length];
-            });
+            seedsUniqueCultivars.forEach((c, i) => { cultivarColorMap[c] = CULTIVAR_COLORS[i % CULTIVAR_COLORS.length]; });
 
             let totalAreaCalculated = 0, totalSeedsAcc = 0;
 
@@ -2306,14 +2322,8 @@
                 let allPts = [];
                 currentGeoJSON.features.forEach(f => {
                     if (f.geometry && f.geometry.coordinates) {
-                        const rings = f.geometry.type === 'MultiPolygon' 
-                            ? f.geometry.coordinates.flat(1) 
-                            : f.geometry.coordinates;
-                        rings.forEach(ring => {
-                            if (Array.isArray(ring)) ring.forEach(pt => {
-                                if (Array.isArray(pt) && pt.length >= 2) allPts.push(pt);
-                            });
-                        });
+                        const rings = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates.flat(1) : f.geometry.coordinates;
+                        rings.forEach(ring => { if (Array.isArray(ring)) ring.forEach(pt => { if (Array.isArray(pt) && pt.length >= 2) allPts.push(pt); }); });
                     }
                 });
 
@@ -2338,37 +2348,32 @@
                         let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
                         let subClean = cleanString(rawSub);
                         let itemObj = doseMap[subClean];
+                        let cName = seedsCultivarMap[subClean];
                         let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
 
                         let fillColor = '#f1f5f9';
-                        if (itemObj !== undefined) {
-                            totalAreaCalculated += area;
-                            totalSeedsAcc += (itemObj.dose * area);
 
-                            if (pdfMode === 'cultivar') {
-                                fillColor = cultivarColorMap[itemObj.cultivar] || '#16a34a';
-                            } else {
+                        if (pdfMode === 'cultivar') {
+                            if (cName && cultivarColorMap[cName]) {
+                                fillColor = cultivarColorMap[cName];
+                                totalAreaCalculated += area;
+                            }
+                        } else {
+                            if (itemObj !== undefined) {
+                                totalAreaCalculated += area;
+                                totalSeedsAcc += (itemObj.dose * area);
                                 if (doseColorMap[Math.round(itemObj.dose)]) fillColor = doseColorMap[Math.round(itemObj.dose)];
                             }
                         }
 
-                        const rings = f.geometry.type === 'MultiPolygon' 
-                            ? f.geometry.coordinates.flat(1) 
-                            : (f.geometry.coordinates || []);
-
-                        let totalPx = 0, totalPy = 0, ptCount = 0;
+                        const rings = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates.flat(1) : (f.geometry.coordinates || []);
 
                         rings.forEach(ring => {
                             if (!Array.isArray(ring) || !ring.length) return;
-
                             ctx.beginPath();
                             ring.forEach((pt, index) => {
                                 const px = offsetX + (pt[0] - minX) * cosScale * scale;
                                 const py = offsetY + (maxY - pt[1]) * scale;
-                                totalPx += px;
-                                totalPy += py;
-                                ptCount++;
-
                                 if (index === 0) ctx.moveTo(px, py);
                                 else ctx.lineTo(px, py);
                             });
@@ -2380,27 +2385,6 @@
                             ctx.lineWidth = 1.2;
                             ctx.stroke();
                         });
-
-                        if (ptCount > 0 && itemObj !== undefined) {
-                            const cx = totalPx / ptCount;
-                            const cy = totalPy / ptCount;
-                            const subName = f.properties.Subs || f.properties.Subdivisao || f.properties.Talhao || 'Gleba';
-                            
-                            let valStr = pdfMode === 'cultivar' ? itemObj.cultivar : `${Math.round(itemObj.dose)} ${unitStr}`;
-
-                            let textLabel = "";
-                            if (showLabels && showValues) textLabel = `${subName}: ${valStr}`;
-                            else if (showLabels) textLabel = `${subName}`;
-                            else if (showValues) textLabel = `${valStr}`;
-
-                            if (textLabel !== "") {
-                                ctx.fillStyle = "#000000";
-                                ctx.font = "bold 9px Helvetica, Arial";
-                                ctx.textAlign = "center";
-                                ctx.fillText(textLabel, cx, cy);
-                                ctx.textAlign = "left";
-                            }
-                        }
                     });
                 }
             }
@@ -2424,9 +2408,7 @@
 
                 let currY = legY + 50;
                 seedsUniqueCultivars.forEach((c) => {
-                    let hexColor = cultivarColorMap[c];
-
-                    ctx.fillStyle = hexColor;
+                    ctx.fillStyle = cultivarColorMap[c];
                     ctx.fillRect(legX + 12, currY - 12, 16, 16);
                     ctx.strokeStyle = "#64748B";
                     ctx.lineWidth = 1;
@@ -2437,50 +2419,6 @@
                     ctx.fillText(`${c}`, legX + 34, currY);
                     currY += 26;
                 });
-
-                const resY = legY + legH + 15;
-                const resH = 175;
-
-                ctx.fillStyle = "#0F172A";
-                ctx.fillRect(legX, resY, legW, resH);
-                ctx.strokeStyle = "#334155";
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(legX, resY, legW, resH);
-
-                ctx.fillStyle = "#34D399";
-                ctx.font = "bold 14px Helvetica, Arial";
-                ctx.fillText("RESUMO DO PLANTIO", legX + 15, resY + 28);
-
-                ctx.strokeStyle = "#1E293B";
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(legX + 15, resY + 38);
-                ctx.lineTo(legX + legW - 15, resY + 38);
-                ctx.stroke();
-
-                ctx.fillStyle = "#94A3B8";
-                ctx.font = "bold 11px Helvetica, Arial";
-                ctx.fillText("Cultura:", legX + 15, resY + 60);
-                ctx.fillText("Área Total:", legX + 15, resY + 88);
-                ctx.fillText("Cultivares Usadas:", legX + 15, resY + 116);
-                ctx.fillText("Total Sementes:", legX + 15, resY + 150);
-
-                ctx.textAlign = "right";
-                ctx.fillStyle = "#FFFFFF";
-                ctx.font = "bold 11px Helvetica, Arial";
-                ctx.fillText(`${crop}`, legX + legW - 15, resY + 60);
-
-                ctx.fillStyle = "#34D399";
-                ctx.fillText(`${Math.round(totalAreaCalculated)} ha`, legX + legW - 15, resY + 88);
-
-                ctx.fillStyle = "#FCD34D";
-                ctx.fillText(`${seedsUniqueCultivars.length} Variedade(s)`, legX + legW - 15, resY + 116);
-
-                ctx.fillStyle = "#34D399";
-                ctx.font = "bold 11px Helvetica, Arial";
-                ctx.fillText(`${Math.round(totalSeedsAcc).toLocaleString('pt-BR')} sem`, legX + legW - 15, resY + 150);
-
-                ctx.textAlign = "left";
             } else {
                 const maxVisibleDoses = Math.min(seedsUniqueDoses.length, 6);
                 const legH = 50 + (maxVisibleDoses * 28) + 20;
@@ -2499,7 +2437,6 @@
                 seedsUniqueDoses.slice(0, 6).forEach((d) => {
                     let colorIdx = seedsAscDoses.indexOf(d);
                     let hexColor = rdYlGnPalette[colorIdx];
-                    let itemCultivar = seedsProcessedData.find(x => Math.round(x.dose) === d)?.cultivar || '';
 
                     ctx.fillStyle = hexColor;
                     ctx.fillRect(legX + 12, currY - 12, 16, 16);
@@ -2509,86 +2446,14 @@
 
                     ctx.fillStyle = "#334155";
                     ctx.font = "bold 10px Helvetica, Arial";
-                    let textDose = `${Math.round(d)} ${unitStr}`;
-                    if (itemCultivar) textDose += ` (${itemCultivar.substring(0, 10)})`;
-                    ctx.fillText(textDose, legX + 34, currY);
+                    ctx.fillText(`${Math.round(d)} ${unitStr}`, legX + 34, currY);
                     currY += 26;
                 });
-
-                ctx.fillStyle = "#f1f5f9";
-                ctx.fillRect(legX + 12, currY - 12, 16, 16);
-                ctx.strokeStyle = "#64748B";
-                ctx.lineWidth = 1;
-                ctx.strokeRect(legX + 12, currY - 12, 16, 16);
-
-                ctx.fillStyle = "#334155";
-                ctx.font = "bold 10px Helvetica, Arial";
-                ctx.fillText(`Sem Plantio (0 ${unitStr})`, legX + 34, currY);
-
-                const resY = legY + legH + 15;
-                const resH = 175;
-
-                ctx.fillStyle = "#0F172A";
-                ctx.fillRect(legX, resY, legW, resH);
-                ctx.strokeStyle = "#334155";
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(legX, resY, legW, resH);
-
-                ctx.fillStyle = "#34D399";
-                ctx.font = "bold 14px Helvetica, Arial";
-                ctx.fillText("RESUMO DO PLANTIO", legX + 15, resY + 28);
-
-                ctx.strokeStyle = "#1E293B";
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(legX + 15, resY + 38);
-                ctx.lineTo(legX + legW - 15, resY + 38);
-                ctx.stroke();
-
-                ctx.fillStyle = "#94A3B8";
-                ctx.font = "bold 11px Helvetica, Arial";
-                ctx.fillText("Cultura:", legX + 15, resY + 60);
-                ctx.fillText("Área Total:", legX + 15, resY + 88);
-                ctx.fillText("População Média:", legX + 15, resY + 116);
-                ctx.fillText("Total Sementes:", legX + 15, resY + 150);
-
-                let avgDose = totalAreaCalculated > 0 ? (totalSeedsAcc / totalAreaCalculated) : 0;
-
-                ctx.textAlign = "right";
-                ctx.fillStyle = "#FFFFFF";
-                ctx.font = "bold 11px Helvetica, Arial";
-                ctx.fillText(`${crop}`, legX + legW - 15, resY + 60);
-
-                ctx.fillStyle = "#34D399";
-                ctx.fillText(`${Math.round(totalAreaCalculated)} ha`, legX + legW - 15, resY + 88);
-
-                ctx.fillStyle = "#FCD34D";
-                ctx.fillText(`${Math.round(avgDose)} ${unitStr}`, legX + legW - 15, resY + 116);
-
-                ctx.fillStyle = "#34D399";
-                ctx.font = "bold 11px Helvetica, Arial";
-                ctx.fillText(`${Math.round(totalSeedsAcc).toLocaleString('pt-BR')} sem`, legX + legW - 15, resY + 150);
-
-                ctx.textAlign = "left";
             }
 
-            // MONTAGEM DA TABELA RESUMO POR CAMPO
+            // MONTAGEM DA TABELA RESUMO NO PDF
             const tblX = 1195, tblY = 110;
             const tblW = 365;
-
-            let talhaoMap = {};
-            seedsProcessedData.forEach(item => {
-                if (item.hasValue) {
-                    let tKey = String(item.talhao || 'N/A').toUpperCase();
-                    if (!talhaoMap[tKey]) {
-                        talhaoMap[tKey] = { area: 0, totalSeeds: 0, cultivar: item.cultivar || 'Padrão' };
-                    }
-                    talhaoMap[tKey].area += item.area;
-                    talhaoMap[tKey].totalSeeds += item.total;
-                }
-            });
-
-            const sortedTalhaoKeys = Object.keys(talhaoMap).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
 
             ctx.fillStyle = "#15803D";
             ctx.fillRect(tblX, tblY, tblW, 34);
@@ -2596,58 +2461,71 @@
             ctx.fillStyle = "#FFFFFF";
             ctx.font = "bold 9px Helvetica, Arial";
             ctx.textAlign = "center";
-            ctx.fillText("Campo", tblX + 30, tblY + 21);
-            ctx.fillText("Cultivar", tblX + 105, tblY + 21);
-            ctx.fillText("Área (ha)", tblX + 195, tblY + 21);
-            ctx.fillText(`Total (${crop})`, tblX + 265, tblY + 21);
-            ctx.fillText("Pop. (sem/ha)", tblX + 330, tblY + 21);
 
-            let tY = tblY + 34;
-            let sumArea = 0, sumSeeds = 0;
+            if (pdfMode === 'cultivar') {
+                ctx.fillText("Campo / Subdivisão", tblX + 80, tblY + 21);
+                ctx.fillText("Cultivar / Variedade", tblX + 260, tblY + 21);
 
-            sortedTalhaoKeys.forEach((tKey, idx) => {
-                if (tY > 1050) return;
+                let tY = tblY + 34;
 
-                let data = talhaoMap[tKey];
-                let avgDoseItem = data.area > 0 ? (data.totalSeeds / data.area) : 0;
-                let seedsMil = data.totalSeeds / 1000;
+                const sortedSubKeys = Object.keys(seedsCultivarMap).sort();
+                sortedSubKeys.forEach((sKey, idx) => {
+                    if (tY > 1050) return;
+                    let cName = seedsCultivarMap[sKey];
 
-                sumArea += data.area;
-                sumSeeds += data.totalSeeds;
+                    ctx.fillStyle = idx % 2 === 0 ? "#FFFFFF" : "#DCF5AA";
+                    ctx.fillRect(tblX, tY, tblW, 20);
 
-                ctx.fillStyle = idx % 2 === 0 ? "#FFFFFF" : "#DCF5AA";
-                ctx.fillRect(tblX, tY, tblW, 20);
+                    ctx.strokeStyle = "#F3F4F6";
+                    ctx.lineWidth = 0.8;
+                    ctx.strokeRect(tblX, tY, tblW, 20);
 
-                ctx.strokeStyle = "#F3F4F6";
-                ctx.lineWidth = 0.8;
-                ctx.strokeRect(tblX, tY, tblW, 20);
+                    ctx.fillStyle = "#1E293B";
+                    ctx.font = "9px Helvetica, Arial";
+                    ctx.fillText(sKey.toUpperCase(), tblX + 80, tY + 14);
+                    ctx.fillText(cName, tblX + 260, tY + 14);
 
-                ctx.fillStyle = "#1E293B";
-                ctx.font = "9px Helvetica, Arial";
-                ctx.fillText(tKey, tblX + 30, tY + 14);
-                ctx.fillText(data.cultivar.substring(0, 14), tblX + 105, tY + 14);
-                ctx.fillText(`${Math.round(data.area)}`, tblX + 195, tY + 14);
-                ctx.fillText(`${Math.round(seedsMil)} mil`, tblX + 265, tY + 14);
-                ctx.fillText(`${Math.round(avgDoseItem)}`, tblX + 330, tY + 14);
+                    tY += 20;
+                });
+            } else {
+                ctx.fillText("Campo", tblX + 40, tblY + 21);
+                ctx.fillText("Área campo (ha)", tblX + 140, tblY + 21);
+                ctx.fillText(`Total (${crop})`, tblX + 240, tblY + 21);
+                ctx.fillText("Pop. (sem/ha)", tblX + 320, tblY + 21);
 
-                tY += 20;
-            });
+                let tY = tblY + 34;
+                let sumArea = 0, sumSeeds = 0;
 
-            ctx.fillStyle = "#0F172A";
-            ctx.fillRect(tblX, tY, tblW, 26);
+                let talhaoMap = {};
+                seedsProcessedData.forEach(item => {
+                    if (item.hasValue) {
+                        let tKey = String(item.talhao || 'N/A').toUpperCase();
+                        if (!talhaoMap[tKey]) talhaoMap[tKey] = { area: 0, totalSeeds: 0 };
+                        talhaoMap[tKey].area += item.area;
+                        talhaoMap[tKey].totalSeeds += item.total;
+                    }
+                });
 
-            let grandAvgDose = sumArea > 0 ? (sumSeeds / sumArea) : 0;
+                Object.keys(talhaoMap).sort().forEach((tKey, idx) => {
+                    if (tY > 1050) return;
+                    let data = talhaoMap[tKey];
+                    let avgDoseItem = data.area > 0 ? (data.totalSeeds / data.area) : 0;
+                    sumArea += data.area;
+                    sumSeeds += data.totalSeeds;
 
-            ctx.fillStyle = "#FFFFFF";
-            ctx.font = "bold 10px Helvetica, Arial";
-            ctx.fillText("Total Geral", tblX + 30, tY + 17);
-            
-            ctx.fillStyle = "#34D399";
-            ctx.font = "bold 10px Helvetica, Arial";
-            ctx.fillText("-", tblX + 105, tY + 17);
-            ctx.fillText(`${Math.round(sumArea)}`, tblX + 195, tY + 17);
-            ctx.fillText(`${Math.round(sumSeeds / 1000)} mil`, tblX + 265, tY + 17);
-            ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 330, tY + 17);
+                    ctx.fillStyle = idx % 2 === 0 ? "#FFFFFF" : "#DCF5AA";
+                    ctx.fillRect(tblX, tY, tblW, 20);
+
+                    ctx.fillStyle = "#1E293B";
+                    ctx.font = "9px Helvetica, Arial";
+                    ctx.fillText(tKey, tblX + 40, tY + 14);
+                    ctx.fillText(`${Math.round(data.area)}`, tblX + 140, tY + 14);
+                    ctx.fillText(`${Math.round(data.totalSeeds / 1000)} mil`, tblX + 240, tY + 14);
+                    ctx.fillText(`${Math.round(avgDoseItem)}`, tblX + 320, tY + 14);
+
+                    tY += 20;
+                });
+            }
 
             ctx.textAlign = "left";
 
@@ -2661,8 +2539,8 @@
         }
 
         function generateSeedsPDF(pdfMode = 'dose') {
-            if (!seedsProcessedData.length) { 
-                alert('Processe primeiro a planilha de prescrição de sementes para gerar o laudo PDF!'); 
+            if (!seedsProcessedData.length && !Object.keys(seedsCultivarMap).length) { 
+                alert('Processe primeiro a planilha de prescrição de sementes ou de cultivares!'); 
                 return; 
             }
             const farmKey = document.getElementById('seeds-sel-farm').value;
@@ -2756,14 +2634,8 @@
                 let allPts = [];
                 filteredFeatures.forEach(f => {
                     if (f.geometry && f.geometry.coordinates) {
-                        const rings = f.geometry.type === 'MultiPolygon' 
-                            ? f.geometry.coordinates.flat(1) 
-                            : f.geometry.coordinates;
-                        rings.forEach(ring => {
-                            if (Array.isArray(ring)) ring.forEach(pt => {
-                                if (Array.isArray(pt) && pt.length >= 2) allPts.push(pt);
-                            });
-                        });
+                        const rings = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates.flat(1) : f.geometry.coordinates;
+                        rings.forEach(ring => { if (Array.isArray(ring)) ring.forEach(pt => { if (Array.isArray(pt) && pt.length >= 2) allPts.push(pt); }); });
                     }
                 });
 
@@ -2793,9 +2665,7 @@
                         const matched = getMatchedRule(rawVal, rules);
                         if (matched) fillColor = matched.color;
 
-                        const rings = f.geometry.type === 'MultiPolygon' 
-                            ? f.geometry.coordinates.flat(1) 
-                            : (f.geometry.coordinates || []);
+                        const rings = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates.flat(1) : (f.geometry.coordinates || []);
 
                         let totalPx = 0, totalPy = 0, ptCount = 0;
 
@@ -3105,7 +2975,7 @@
                     shp(e.target.result).then(function(newGeojson) {
                         let finalGeoJSON = Array.isArray(newGeojson) ? newGeojson[0] : newGeojson;
                         
-                        if (currentFarm.geojson && currentFarm.geojson.features && currentGeoJSON.features.length) {
+                        if (currentFarm.geojson && currentFarm.geojson.features && currentFarm.geojson.features.length) {
                             const oldFeatureMap = {};
                             currentFarm.geojson.features.forEach(oldF => {
                                 let fSub = oldF.properties ? (oldF.properties.Subs || oldF.properties.Subdivisao || oldF.properties.Talhao) : null;
