@@ -1794,7 +1794,7 @@
             }
         }
 
-        // DESENHAR CANVAS DO LAUDO DA TAXA VARIÁVEL (IMPRESSÃO EM INTEIROS SEM CASAS DECIMAIS)
+        // DESENHAR CANVAS DO LAUDO DA TAXA VARIÁVEL (COM CAIXA DE RESUMO LOGO ABAIXO DA LEGENDA)
         function drawVRateCanvas(farmInfo, product, unit) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -1939,20 +1939,25 @@
                 }
             }
 
-            // LEGENDA DE DOSES EXATAS NO PDF
+            // QUADRO 1: LEGENDA DE DOSES EXATAS NO PDF
             const legX = 970, legY = 120;
+            const legW = 210;
+
+            const maxVisibleDoses = Math.min(vrateUniqueDoses.length, 6);
+            const legH = 50 + (maxVisibleDoses * 26) + 30;
+
             ctx.fillStyle = "#F8FAFC";
-            ctx.fillRect(legX, legY, 210, 320);
+            ctx.fillRect(legX, legY, legW, legH);
             ctx.strokeStyle = "#CBD5E1";
             ctx.lineWidth = 1.5;
-            ctx.strokeRect(legX, legY, 210, 320);
+            ctx.strokeRect(legX, legY, legW, legH);
 
             ctx.fillStyle = "#0F172A";
             ctx.font = "bold 15px Helvetica, Arial";
             ctx.fillText("LEGENDA DE APLICAÇÃO", legX + 15, legY + 25);
 
-            let currY = legY + 55;
-            vrateUniqueDoses.slice(0, 8).forEach((d) => {
+            let currY = legY + 52;
+            vrateUniqueDoses.slice(0, 6).forEach((d) => {
                 let colorIdx = vrateAscDoses.indexOf(d);
                 let hexColor = rdYlGnPalette[colorIdx];
 
@@ -1965,20 +1970,72 @@
                 ctx.fillStyle = "#334155";
                 ctx.font = "bold 12px Helvetica, Arial";
                 ctx.fillText(`${Math.round(d)} ${unitStr}`, legX + 38, currY);
-                currY += 28;
+                currY += 26;
             });
 
             ctx.fillStyle = "#f1f5f9";
             ctx.fillRect(legX + 15, currY - 12, 16, 16);
             ctx.strokeStyle = "#64748B";
             ctx.lineWidth = 1;
-            ctx.strokeRect(legX + 15, currY - 16, 22, 22);
+            ctx.strokeRect(legX + 15, currY - 12, 16, 16);
 
             ctx.fillStyle = "#334155";
             ctx.font = "bold 12px Helvetica, Arial";
             ctx.fillText(`Sem Aplicação (0 ${unitStr})`, legX + 38, currY);
 
-            // MONTAGEM DA TABELA RESUMO SEM CASAS DECIMAIS
+            // QUADRO 2: CAIXA DE RESUMO DO INSUMO POSICIONADA LOGO ABAIXO DA LEGENDA
+            const resY = legY + legH + 20;
+            const resH = 175;
+
+            ctx.fillStyle = "#0F172A";
+            ctx.fillRect(legX, resY, legW, resH);
+            ctx.strokeStyle = "#334155";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(legX, resY, legW, resH);
+
+            ctx.fillStyle = "#F59E0B";
+            ctx.font = "bold 14px Helvetica, Arial";
+            ctx.fillText("RESUMO DO INSUMO", legX + 15, resY + 28);
+
+            ctx.strokeStyle = "#1E293B";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(legX + 15, resY + 38);
+            ctx.lineTo(legX + legW - 15, resY + 38);
+            ctx.stroke();
+
+            ctx.fillStyle = "#94A3B8";
+            ctx.font = "bold 11px Helvetica, Arial";
+            ctx.fillText("Produto:", legX + 15, resY + 60);
+            ctx.fillText("Área Total:", legX + 15, resY + 88);
+            ctx.fillText("Dose Média:", legX + 15, resY + 116);
+            ctx.fillText("Total Produto:", legX + 15, resY + 150);
+
+            let avgDose = totalAreaCalculated > 0 ? (totalProductAcc / totalAreaCalculated) : 0;
+            let totalTon = unit === 'kg_ha' ? (totalProductAcc / 1000) : totalProductAcc;
+
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "bold 11px Helvetica, Arial";
+            ctx.fillText(`${product} (${unitStr})`, legX + legW - 15, resY + 60);
+
+            ctx.fillStyle = "#34D399";
+            ctx.fillText(`${Math.round(totalAreaCalculated)} ha`, legX + legW - 15, resY + 88);
+
+            ctx.fillStyle = "#FCD34D";
+            ctx.fillText(`${Math.round(avgDose)} ${unitStr}`, legX + legW - 15, resY + 116);
+
+            let finalTotalStr = unit === 'kg_ha' 
+                ? `${Math.round(totalTon)} Ton (${Math.round(totalProductAcc)} kg)` 
+                : `${Math.round(totalTon)} Toneladas`;
+
+            ctx.fillStyle = "#34D399";
+            ctx.font = "bold 11px Helvetica, Arial";
+            ctx.fillText(finalTotalStr, legX + legW - 15, resY + 150);
+
+            ctx.textAlign = "left";
+
+            // MONTAGEM DA TABELA RESUMO HARMONIZADA E PROFISSIONAL (DESIGN ÂMBAR PRO)
             const tblX = 1195, tblY = 120;
             const tblW = 365;
 
@@ -1996,7 +2053,6 @@
 
             const sortedTalhaoKeys = Object.keys(talhaoMap).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
 
-            // Cabeçalho Âmbar
             ctx.fillStyle = "#B45309";
             ctx.fillRect(tblX, tblY, tblW, 34);
 
@@ -2015,7 +2071,7 @@
                 if (tY > 1050) return;
 
                 let data = talhaoMap[tKey];
-                let avgDose = data.area > 0 ? (data.totalProd / data.area) : 0;
+                let avgDoseItem = data.area > 0 ? (data.totalProd / data.area) : 0;
                 let prodTon = unit === 'kg_ha' ? (data.totalProd / 1000) : data.totalProd;
 
                 sumArea += data.area;
@@ -2032,13 +2088,12 @@
                 ctx.font = "10px Helvetica, Arial";
                 ctx.fillText(tKey, tblX + 40, tY + 14);
                 ctx.fillText(`${Math.round(data.area)}`, tblX + 120, tY + 14);
-                ctx.fillText(`${Math.round(prodTon)}`, tblX + 220, tY + 14);
-                ctx.fillText(`${Math.round(avgDose)}`, tblX + 315, tY + 14);
+                ctx.fillText(`${format1Decimal(prodTon)}`, tblX + 220, tY + 14);
+                ctx.fillText(`${Math.round(avgDoseItem)}`, tblX + 315, tY + 14);
 
                 tY += 20;
             });
 
-            // Linha Total Geral em Números Inteiros
             ctx.fillStyle = "#0F172A";
             ctx.fillRect(tblX, tY, tblW, 26);
 
