@@ -22,6 +22,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
     
     <script>
         tailwind.config = {
@@ -50,6 +51,7 @@
             border: 2px solid #ffffff; border-radius: 50%; display: flex;
             align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.4); font-size: 14px;
         }
+        .ndvi-filter { filter: hue-rotate(80deg) saturate(220%) contrast(120%); }
     </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased">
@@ -58,7 +60,7 @@
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-20">
-                <div class="flex items-center space-x-3 cursor-pointer" onclick="showLanding()">
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="showSection('landing')">
                     <div class="w-10 h-10 bg-origens-green rounded-lg flex items-center justify-center text-white text-xl font-bold">
                         <i class="fa-solid fa-leaf"></i>
                     </div>
@@ -150,12 +152,14 @@
                                 <select id="sel-basemap" onchange="changeBasemap()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 font-bold text-xs text-white">
                                     <option value="esri" selected>Satélite HD Padrão (Esri World)</option>
                                     <option value="google">Satélite Google Hybrid</option>
+                                    <option value="sentinel_rgb">Satélite Cor Real (Destacar Limites)</option>
+                                    <option value="sentinel_ndvi">Satélite NDVI (Vigor Vegetativo Falso-Cor)</option>
                                 </select>
                             </div>
 
                             <div>
                                 <div class="flex justify-between items-center mb-1">
-                                    <label class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-calendar-days text-origens-green mr-1"></i>Ano Safra</label>
+                                    <label class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-calendar-days text-origens-green mr-1"></i>Ano Safra (Múltiplo)</label>
                                     <button onclick="toggleAllSafras()" class="text-[10px] font-bold text-origens-green hover:underline">Todos/Nenhum</button>
                                 </div>
                                 <div id="container-safra-checkboxes" class="max-h-32 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-2 space-y-1 text-xs"></div>
@@ -163,7 +167,7 @@
 
                             <div>
                                 <div class="flex justify-between items-center mb-1">
-                                    <label class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-filter text-origens-green mr-1"></i>Talhões</label>
+                                    <label class="text-xs font-bold text-slate-500 uppercase"><i class="fa-solid fa-filter text-origens-green mr-1"></i>Filtrar por Talhão (Múltiplo)</label>
                                     <button onclick="toggleAllTalhoesBtn()" class="text-[10px] font-bold text-origens-green hover:underline">Todos/Nenhum</button>
                                 </div>
                                 <div id="container-talhao-checkboxes" class="max-h-40 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-2 space-y-1 text-xs"></div>
@@ -178,6 +182,7 @@
                                         <option value="2025">Safra 2025</option>
                                         <option value="2024">Safra 2024</option>
                                         <option value="2023">Safra 2023</option>
+                                        <option value="auto">Detectar da Planilha</option>
                                     </select>
                                 </div>
                                 <div>
@@ -217,14 +222,14 @@
                                 </div>
                                 <div id="box-diff-depth" class="hidden space-y-2">
                                     <div>
-                                        <label class="block text-[11px] font-bold text-emerald-700 mb-0.5">Lado Esquerdo</label>
+                                        <label class="block text-[11px] font-bold text-emerald-700 mb-0.5"><i class="fa-solid fa-arrow-left mr-1"></i>Lado Esquerdo</label>
                                         <select id="sel-depth-a" onchange="updateGISMap()" class="w-full bg-white border border-slate-300 rounded-lg p-1.5 font-bold text-xs text-slate-800">
                                             <option value="d0_10">Camada 0 - 10 cm</option>
                                             <option value="d10_20">Camada 10 - 20 cm</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-[11px] font-bold text-blue-700 mb-0.5">Lado Direito</label>
+                                        <label class="block text-[11px] font-bold text-blue-700 mb-0.5"><i class="fa-solid fa-arrow-right mr-1"></i>Lado Direito</label>
                                         <select id="sel-depth-b" onchange="updateGISMap()" class="w-full bg-white border border-slate-300 rounded-lg p-1.5 font-bold text-xs text-slate-800">
                                             <option value="d10_20" selected>Camada 10 - 20 cm</option>
                                             <option value="d20_40">Camada 20 - 40 cm</option>
@@ -233,26 +238,44 @@
                                 </div>
                             </div>
 
-                            <!-- PARÂMETROS DE SOLO -->
+                            <!-- LISTA COMPLETA DOS PARÂMETROS DE SOLO -->
                             <div>
                                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Parâmetro de Solo</label>
                                 <select id="sel-param" onchange="updateGISMap()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-sm text-slate-800">
                                     <optgroup label="Físicos & Acidez">
                                         <option value="Argila">Argila (g/kg)</option>
                                         <option value="MO">Matéria Orgânica (MO)</option>
+                                        <option value="MO (%)">MO (%) - Categorias</option>
+                                        <option value="Classes de MO">Classes de MO</option>
                                         <option value="pH_CaCl2">pH em CaCl2</option>
                                         <option value="pH_água">pH em Água</option>
                                     </optgroup>
                                     <optgroup label="Macronutrientes">
                                         <option value="P">Fósforo (P - Mehlich 1)</option>
+                                        <option value="Classes de P">Classes de P</option>
                                         <option value="K">Potássio (K)</option>
                                         <option value="Ca">Cálcio (Ca)</option>
                                         <option value="Mg">Magnésio (Mg)</option>
                                         <option value="S">Enxofre (S)</option>
                                     </optgroup>
                                     <optgroup label="Complexo Sortivo">
+                                        <option value="Al">Alumínio (Al)</option>
+                                        <option value="H">H + Al</option>
+                                        <option value="Sb">Soma de Bases (SB)</option>
                                         <option value="CTC" selected>Capacidade de Troca (CTC)</option>
                                         <option value="V%">Saturação por Bases (V%)</option>
+                                        <option value="Sat. Al">Saturação por Alumínio (m%)</option>
+                                    </optgroup>
+                                    <optgroup label="Saturações e Relações Catiônicas">
+                                        <option value="Ca%">Saturação por Cálcio (Ca%)</option>
+                                        <option value="Mg%">Saturação por Magnésio (Mg%)</option>
+                                        <option value="K%">Saturação por Potássio (K%)</option>
+                                    </optgroup>
+                                    <optgroup label="Micronutrientes">
+                                        <option value="Zn">Zinco (Zn)</option>
+                                        <option value="Cu">Cobre (Cu)</option>
+                                        <option value="Mn">Manganês (Mn)</option>
+                                        <option value="B">Boro (B)</option>
                                     </optgroup>
                                 </select>
                             </div>
@@ -276,6 +299,9 @@
                         <div class="space-y-2 mt-4">
                             <button id="btn-export-pdf" onclick="generatePerfectPDF()" class="w-full bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl shadow transition-all flex items-center justify-center gap-2 text-xs">
                                 <i class="fa-solid fa-file-pdf"></i><span id="pdf-btn-text">Exportar Laudo PDF Atual</span>
+                            </button>
+                            <button id="btn-batch-pdf" onclick="generateBatchPDFs()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold p-3 rounded-xl shadow transition-all flex items-center justify-center gap-2 text-xs">
+                                <i class="fa-solid fa-file-zipper"></i><span id="pdf-batch-btn-text">Exportar Lote de PDFs (.ZIP)</span>
                             </button>
                         </div>
                     </div>
@@ -311,8 +337,14 @@
                                         <option value="KCl">Cloreto de Potássio (KCl)</option>
                                         <option value="Ureia">Ureia</option>
                                         <option value="MAP">Fosfato Monoamônico (MAP)</option>
+                                        <option value="DAP">Fosfato Diamônico (DAP)</option>
+                                        <option value="NPK">Formulados NPK</option>
+                                        <option value="Superfosfato_Simples">Superfosfato Simples</option>
+                                        <option value="Superfosfato_Triplo">Superfosfato Triplo</option>
+                                        <option value="Fosfato_Natural">Fosfato Natural</option>
                                         <option value="Calcario">Calcário</option>
                                         <option value="Gesso">Gesso Agrícola</option>
+                                        <option value="Micronutrientes">Micronutrientes</option>
                                     </select>
                                 </div>
                                 <div>
@@ -335,6 +367,24 @@
                                 </button>
                             </div>
 
+                            <!-- CONTROLES DE RÓTULO DO MAPA DE TAXA VARIÁVEL -->
+                            <div class="space-y-2 pt-2 border-t border-amber-200">
+                                <span class="text-xs font-bold text-amber-800 uppercase tracking-wider block mb-1">Camadas & Rótulos no Mapa/PDF</span>
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="vrate-chk-boundary" checked onchange="vrateUpdateMap()" class="form-checkbox h-4 w-4 text-amber-600 rounded">
+                                    <span class="text-sm font-semibold text-slate-700">Contorno do Perímetro</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="vrate-chk-labels" onchange="vrateUpdateMap()" class="form-checkbox h-4 w-4 text-amber-600 rounded">
+                                    <span class="text-sm font-semibold text-slate-700">Rótulos das Subdivisões</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="vrate-chk-values" checked onchange="vrateUpdateMap()" class="form-checkbox h-4 w-4 text-amber-600 rounded">
+                                    <span class="text-sm font-semibold text-slate-700">Valores das Doses</span>
+                                </label>
+                            </div>
+
+                            <!-- RESUMO DA APLICAÇÃO -->
                             <div id="vrate-summary-box" class="bg-slate-900 text-white p-4 rounded-2xl space-y-2 hidden">
                                 <span class="text-xs font-black text-amber-400 uppercase block border-b border-slate-800 pb-1">Resumo do Insumo</span>
                                 <div class="flex justify-between text-xs"><span>Produto:</span><b id="vrate-sum-prod" class="text-white">---</b></div>
@@ -343,9 +393,31 @@
                                 <div class="flex justify-between text-xs text-sm border-t border-slate-800 pt-1 mt-1"><span>Total Produto:</span><b id="vrate-sum-total" class="text-emerald-400 font-extrabold text-sm">---</b></div>
                             </div>
 
+                            <!-- EXPORTAR PARA MONITORES & PDF PRESCRIÇÃO -->
                             <div class="space-y-2 border-t pt-3">
+                                <span class="text-xs font-extrabold text-slate-500 uppercase block">Exportar Prescrição</span>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Selecione a Marca / Sistema do Trator</label>
+                                    <select id="vrate-monitor-brand" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-bold text-xs text-slate-800">
+                                        <option value="johndeere">John Deere (GS2 / GS3 / GS4 / G5) - [Rx\]</option>
+                                        <option value="trimble_aggps">Trimble (CFX-750 / FM-750 / FM-1000) - [AgGPS\Prescriptions\]</option>
+                                        <option value="trimble_agdata">Trimble (GFX-750 / TMX-2050) - [AgData\Prescriptions\]</option>
+                                        <option value="stara">Stara (Topper 4500 / 5500) - [Dados\Mapas\]</option>
+                                        <option value="raven">Raven (CR7 / VIPER 4) - [rxMaps\]</option>
+                                        <option value="caseih">Case IH (Pro 700 / AFS) - [Shapefile\]</option>
+                                        <option value="jacto">Jacto (OtMIS / Omni 700) - [OtMIS\Maps\]</option>
+                                        <option value="agres">Agres (Isoview) - [Agres\Prescricao\]</option>
+                                        <option value="isobus">ISO-XML Genérico (ISOBUS / TaskData) - [TASKDATA\]</option>
+                                    </select>
+                                </div>
                                 <button onclick="generateVRatePDF()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold p-3 rounded-xl shadow text-xs flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-file-pdf"></i><span>Exportar Laudo PDF de Prescrição</span>
+                                </button>
+                                <button onclick="exportForMonitor()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold p-3 rounded-xl shadow text-xs flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-download text-amber-400"></i><span>Baixar Arquivo do Monitor (.ZIP)</span>
+                                </button>
+                                <button onclick="exportVRateExcelSummary()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-file-excel"></i><span>Baixar Resumo em Excel (.XLSX)</span>
                                 </button>
                             </div>
                         </div>
@@ -381,6 +453,8 @@
                                         <option value="Milho">Milho</option>
                                         <option value="Algodao">Algodão</option>
                                         <option value="Feijao">Feijão</option>
+                                        <option value="Girassol">Girassol</option>
+                                        <option value="Sorgo">Sorgo</option>
                                     </select>
                                 </div>
                                 <div>
@@ -390,6 +464,16 @@
                                         <option value="mil_ha">Milhares de Sementes por Ha (mil sem/ha)</option>
                                         <option value="sem_m">Sementes por Metro Linear (sem/m)</option>
                                     </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-600 mb-1">Espaçamento (cm)</label>
+                                        <input type="number" id="seeds-spacing" value="45" step="1" class="w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs font-bold text-slate-900">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-600 mb-1">Germinação / Vigor (%)</label>
+                                        <input type="number" id="seeds-germination" value="95" step="1" class="w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs font-bold text-slate-900">
+                                    </div>
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-bold text-slate-700 mb-1">Perímetro / Subdivisões Específico (.zip)</label>
@@ -408,6 +492,7 @@
                                 </button>
                             </div>
 
+                            <!-- CONTROLES DO MODO DE VISUALIZAÇÃO DO MAPA -->
                             <div class="space-y-2 pt-2 border-t border-emerald-200">
                                 <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block mb-1">Modo de Exibição do Mapa</span>
                                 <div>
@@ -416,8 +501,21 @@
                                         <option value="cultivar">Mapa por Cultivar / Variedade</option>
                                     </select>
                                 </div>
+                                <label class="flex items-center space-x-3 cursor-pointer pt-1">
+                                    <input type="checkbox" id="seeds-chk-boundary" checked onchange="seedsUpdateMap()" class="form-checkbox h-4 w-4 text-emerald-600 rounded">
+                                    <span class="text-sm font-semibold text-slate-700">Contorno do Perímetro</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="seeds-chk-labels" onchange="seedsUpdateMap()" class="form-checkbox h-4 w-4 text-emerald-600 rounded">
+                                    <span class="text-sm font-semibold text-slate-700">Rótulos das Subdivisões</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="seeds-chk-values" checked onchange="seedsUpdateMap()" class="form-checkbox h-4 w-4 text-emerald-600 rounded">
+                                    <span class="text-sm font-semibold text-slate-700">População / Cultivares</span>
+                                </label>
                             </div>
 
+                            <!-- RESUMO DO PLANTIO DE SEMENTES -->
                             <div id="seeds-summary-box" class="bg-slate-900 text-white p-4 rounded-2xl space-y-2 hidden">
                                 <span class="text-xs font-black text-emerald-400 uppercase block border-b border-slate-800 pb-1">Resumo do Plantio</span>
                                 <div class="flex justify-between text-xs"><span>Cultura:</span><b id="seeds-sum-crop" class="text-white">---</b></div>
@@ -426,12 +524,28 @@
                                 <div class="flex justify-between text-xs text-sm border-t border-slate-800 pt-1 mt-1"><span>Total Sementes:</span><b id="seeds-sum-total" class="text-emerald-400 font-extrabold text-sm">---</b></div>
                             </div>
 
+                            <!-- EXPORTAR PARA MONITORES & PDF SEMENTES -->
                             <div class="space-y-2 border-t pt-3">
+                                <span class="text-xs font-extrabold text-slate-500 uppercase block">Exportar Prescrição de Plantio</span>
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Selecione a Marca / Monitor da Plantadeira</label>
+                                    <select id="seeds-monitor-brand" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-bold text-xs text-slate-800">
+                                        <option value="johndeere">John Deere (ExactEmerge / GS4 / G5) - [Rx\]</option>
+                                        <option value="trimble_aggps">Trimble (Field-IQ / GFX / TMX) - [AgGPS\Prescriptions\]</option>
+                                        <option value="stara">Stara (Topper 5500 / Absoluta) - [Dados\Mapas\]</option>
+                                        <option value="precision_planting">Precision Planting (20|20 SeedSense) - [2020\Rx\]</option>
+                                        <option value="caseih">Case IH (Early Riser / AFS) - [Shapefile\]</option>
+                                        <option value="isobus">ISO-XML Genérico (ISOBUS / TaskData) - [TASKDATA\]</option>
+                                    </select>
+                                </div>
                                 <button onclick="generateSeedsPDF('dose')" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-file-pdf"></i><span>Exportar Laudo PDF por População</span>
                                 </button>
                                 <button onclick="generateSeedsPDF('cultivar')" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-file-pdf"></i><span>Exportar Laudo PDF de Cultivares</span>
+                                </button>
+                                <button onclick="exportSeedsForMonitor()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-download text-emerald-400"></i><span>Baixar Arquivo da Plantadeira (.ZIP)</span>
                                 </button>
                             </div>
                         </div>
@@ -455,6 +569,103 @@
                             <p class="text-sm text-slate-500">Cadastre propriedades e gerencie acessos por e-mail Google.</p>
                         </div>
                     </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-tractor text-origens-green mr-2"></i>Cadastrar Nova Fazenda</h3>
+                            <form onsubmit="handleCreateFarmDirect(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ID da Fazenda (sem espaços)</label>
+                                    <input type="text" id="farm-id" required placeholder="Ex: fazenda_boa_vista" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome do Produtor</label>
+                                    <input type="text" id="farm-producer" required placeholder="Ex: João da Silva" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome da Propriedade</label>
+                                    <input type="text" id="farm-name" required placeholder="Ex: Fazenda Boa Vista" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Município/UF</label>
+                                        <input type="text" id="farm-location" required placeholder="Ex: Lucas do Rio Verde - MT" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Área Total (Ha)</label>
+                                        <input type="number" step="0.1" id="farm-area" required placeholder="Ex: 850.5" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl transition-all shadow">
+                                    Salvar Fazenda na Nuvem
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-user-plus text-origens-green mr-2"></i>Autorizar E-mail Google do Cliente</h3>
+                            <form onsubmit="handleCreateUser(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome do Produtor</label>
+                                    <input type="text" id="new-name" required placeholder="Ex: João da Silva" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">E-mail Google / Gmail</label>
+                                    <input type="email" id="new-email" required placeholder="Ex: joao@gmail.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Liberar Acesso Às Fazendas</label>
+                                    <div class="mb-2">
+                                        <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-100 p-2 rounded-lg w-full text-xs font-bold text-slate-800">
+                                            <input type="checkbox" id="chk-farm-all" onchange="toggleAllFarmsCheckboxes(this)" class="h-4 w-4 text-origens-green rounded">
+                                            <span>TODAS AS FAZENDAS (Acesso Total)</span>
+                                        </label>
+                                    </div>
+                                    <div id="new-farm-checkboxes" class="max-h-36 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-3 space-y-2">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl transition-all shadow">
+                                    Autorizar E-mail Google
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-map-location-dot text-origens-green mr-2"></i>Fazendas Cadastradas</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100 uppercase text-slate-600 font-bold border-b border-slate-200">
+                                        <tr>
+                                            <th class="p-3">Fazenda / Produtor</th>
+                                            <th class="p-3">Localização</th>
+                                            <th class="p-3">Área (Ha)</th>
+                                            <th class="p-3 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="farms-table-body" class="divide-y border-slate-200 font-medium"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-users text-origens-green mr-2"></i>Acessos Autorizados</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100 uppercase text-slate-600 font-bold border-b border-slate-200">
+                                        <tr>
+                                            <th class="p-3">Cliente</th>
+                                            <th class="p-3">E-mail Google</th>
+                                            <th class="p-3">Fazendas Perm.</th>
+                                            <th class="p-3 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-table-body" class="divide-y border-slate-200 font-medium"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -470,7 +681,8 @@
             projectId: "origens-webgis",
             storageBucket: "origens-webgis.firebasestorage.app",
             messagingSenderId: "277368735288",
-            appId: "1:277368735288:web:92b917c6eecf231e5f88cd"
+            appId: "1:277368735288:web:92b917c6eecf231e5f88cd",
+            measurementId: "G-D33YD6CTNK"
         };
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -497,33 +709,192 @@
 
         const CULTIVAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#4f46e5', '#059669', '#e11d48'];
 
-        // OBSERVAÇÃO AUTOMÁTICA DE SESSÃO DO FIREBASE (EVITA FICAR TRAVADO NA TELA DE LOGIN)
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                currentUser = user;
-                checkUserAuthorization();
-            } else {
-                showLanding();
+        function getRdYlGnPalette(n) {
+            const colors = ['#d73027', '#f46d43', '#fdae61', '#fee08b', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850'];
+            if (n <= 1) return ['#1a9850'];
+            if (n <= colors.length) {
+                let res = [];
+                for (let i = 0; i < n; i++) {
+                    let idx = Math.round(i * (colors.length - 1) / (n - 1));
+                    res.push(colors[idx]);
+                }
+                return res;
             }
-        });
+            function hexToRgb(h) {
+                h = h.replace('#', '');
+                return [parseInt(h.substring(0,2), 16), parseInt(h.substring(2,4), 16), parseInt(h.substring(4,6), 16)];
+            }
+            function rgbToHex(r, g, b) {
+                return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+            }
+            const stops = colors.map(hexToRgb);
+            let res = [];
+            for (let i = 0; i < n; i++) {
+                let t = i / (n - 1);
+                let scaledT = t * (stops.length - 1);
+                let idx = Math.floor(scaledT);
+                if (idx >= stops.length - 1) {
+                    res.push(rgbToHex(...stops[stops.length - 1]));
+                } else {
+                    let localT = scaledT - idx;
+                    let c1 = stops[idx], c2 = stops[idx + 1];
+                    let r = Math.round(c1[0] + (c2[0] - c1[0]) * localT);
+                    let g = Math.round(c1[1] + (c2[1] - c1[1]) * localT);
+                    let b = Math.round(c1[2] + (c2[2] - c1[2]) * localT);
+                    res.push(rgbToHex(r, g, b));
+                }
+            }
+            return res;
+        }
 
-        function showLanding() {
-            document.getElementById('landing-section').classList.remove('hidden');
-            document.getElementById('saas-section').classList.add('hidden');
+        function parseNumber(val) {
+            if (val === null || val === undefined || val === '') return null;
+            if (typeof val === 'number') return isNaN(val) ? null : val;
+            const str = String(val).replace(',', '.').trim();
+            const num = parseFloat(str);
+            return isNaN(num) ? null : num;
+        }
+
+        function formatDisplayValue(val) {
+            if (val === null || val === undefined || val === '') return 'N/A';
+            if (typeof val === 'number') {
+                if (Number.isInteger(val)) return String(val);
+                return String(Math.round(val * 100) / 100);
+            }
+            return String(val);
+        }
+
+        function format1Decimal(val) {
+            return formatDisplayValue(val);
+        }
+
+        function extractSafra(rowObj) {
+            if (!rowObj) return null;
+            if (typeof rowObj !== 'object') {
+                const match = String(rowObj).trim().match(/\b(20\d{2})\b/);
+                return match ? match[1] : null;
+            }
+            for (const key of Object.keys(rowObj)) {
+                const kLower = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (kLower.includes('subs') || kLower.includes('orig') || kLower.includes('gleba') || kLower.includes('talhao')) continue;
+                if (kLower.includes('safra') || kLower.includes('anosafra') || kLower === 'ano' || kLower === 'as') {
+                    const match = String(rowObj[key]).trim().match(/\b(20\d{2})\b/);
+                    if (match) return match[1];
+                }
+            }
+            return null;
+        }
+
+        function cleanString(str) {
+            if (!str) return '';
+            let base = String(str).toLowerCase().split('(')[0];
+            return base.replace(/[^a-z0-9]/g, '');
+        }
+
+        function sanitizeAndCalculateSoilData(row) {
+            if (!row || typeof row !== 'object') return {};
+            const r = {};
+
+            Object.keys(row).forEach(k => {
+                const val = row[k];
+                if (val !== null && val !== undefined && val !== '') {
+                    const num = parseNumber(val);
+                    r[k] = (num !== null && !isNaN(num)) ? num : val;
+                } else {
+                    r[k] = null;
+                }
+            });
+
+            if (r.Argila === null && r['Argila (%)'] !== null) r.Argila = r['Argila (%)'];
+            if (r['Argila (%)'] === null && r.Argila !== null) r['Argila (%)'] = r.Argila;
+
+            if (r.MO === null && r['MO (%)'] !== null) r.MO = r['MO (%)'];
+            if (r['MO (%)'] === null && r.MO !== null) r['MO (%)'] = r.MO;
+
+            const ca = r.Ca || 0, mg = r.Mg || 0, rawK = r.K || 0;
+            const kCmol = rawK > 10 ? (rawK / 391) : rawK;
+            const al = r.Al || 0, h = r.H || 0;
+            const sbCalc = ca + mg + kCmol;
+            const ctcCalc = sbCalc + h + al;
+
+            if (r.Sb === null && sbCalc > 0) r.Sb = Math.round(sbCalc * 100) / 100;
+            if (r.CTC === null && ctcCalc > 0) r.CTC = Math.round(ctcCalc * 100) / 100;
+            if (r['V%'] === null && ctcCalc > 0) r['V%'] = Math.round((sbCalc / ctcCalc) * 1000) / 10;
+            if (r['Sat. Al'] === null && (sbCalc + al) > 0) r['Sat. Al'] = Math.round((al / (sbCalc + al)) * 1000) / 10;
+
+            if (r['Classes de MO'] === null && r.MO !== null) {
+                if (r.MO >= 40) r['Classes de MO'] = 1;
+                else if (r.MO >= 30) r['Classes de MO'] = 2;
+                else if (r.MO >= 20) r['Classes de MO'] = 3;
+                else r['Classes de MO'] = 4;
+            }
+
+            if (r['Classes de P'] === null && r.P !== null) {
+                if (r.P >= 18.1) r['Classes de P'] = 5;
+                else if (r.P >= 12.1) r['Classes de P'] = 4;
+                else if (r.P >= 8.1) r['Classes de P'] = 3;
+                else if (r.P >= 3.1) r['Classes de P'] = 2;
+                else r['Classes de P'] = 1;
+            }
+
+            return r;
+        }
+
+        function getFeatureDepthData(feature, depthKey, selectedSafras) {
+            if (!feature || !feature.properties) return {};
+            const props = feature.properties;
+
+            if (props.safras_historico && typeof props.safras_historico === 'object') {
+                if (selectedSafras && selectedSafras.length) {
+                    const targetSafra = selectedSafras[0];
+                    if (props.safras_historico[targetSafra] && props.safras_historico[targetSafra][depthKey]) {
+                        return props.safras_historico[targetSafra][depthKey];
+                    }
+                } else {
+                    const availableSafras = Object.keys(props.safras_historico).filter(s => /^\d{4}$/.test(s)).sort().reverse();
+                    if (availableSafras.length && props.safras_historico[availableSafras[0]][depthKey]) {
+                        return props.safras_historico[availableSafras[0]][depthKey];
+                    }
+                }
+            }
+            return props[depthKey] || {};
+        }
+
+        async function compressGeoJSON(geojsonObj) {
+            const sanitizedFeatures = geojsonObj.features ? geojsonObj.features.map(f => {
+                const geom = f.geometry ? { ...f.geometry } : null;
+                if (geom && geom.coordinates) {
+                    const roundRing = ring => ring.map(pt => [Math.round(pt[0] * 1000000) / 1000000, Math.round(pt[1] * 1000000) / 1000000]);
+                    if (geom.type === 'MultiPolygon') geom.coordinates = geom.coordinates.map(poly => poly.map(roundRing));
+                    else if (geom.type === 'Polygon') geom.coordinates = geom.coordinates.map(roundRing);
+                }
+                return { type: f.type, properties: f.properties, geometry: geom };
+            }) : [];
+
+            const str = JSON.stringify({ type: "FeatureCollection", features: sanitizedFeatures });
+            const zip = new JSZip();
+            zip.file("geo.json", str);
+            return await zip.generateAsync({ type: "base64", compression: "DEFLATE", compressionOptions: { level: 9 } });
+        }
+
+        async function decompressGeoJSON(base64Zip) {
+            try {
+                const zip = new JSZip();
+                const loaded = await zip.loadAsync(base64Zip, { base64: true });
+                const jsonStr = await loaded.file("geo.json").async("string");
+                return JSON.parse(jsonStr);
+            } catch(e) {
+                return { "type": "FeatureCollection", "features": [] };
+            }
         }
 
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
             try {
-                await auth.signInWithPopup(provider);
+                const result = await auth.signInWithPopup(provider);
+                currentUser = result.user;
+                await checkUserAuthorization();
             } catch (error) { alert("Erro no login: " + error.message); }
-        }
-
-        async function logout() {
-            try {
-                await auth.signOut();
-                showLanding();
-            } catch (e) { console.error(e); }
         }
 
         async function checkUserAuthorization() {
@@ -540,7 +911,7 @@
                         const userData = userDoc.data();
                         currentUserRole = userData.role || "client";
                         currentUserAllowedFarms = userData.farms || [];
-                    } else { alert("Acesso pendente de liberação pelo Administrador."); await auth.signOut(); return; }
+                    } else { alert("Acesso pendente."); await auth.signOut(); return; }
                 } catch (err) { console.error(err); }
             }
 
@@ -571,13 +942,295 @@
                     let parsedGeojson = { "type": "FeatureCollection", "features": [] };
                     let fullZipStr = data.geojsonZip || '';
 
+                    if (data.isChunked && data.chunkCount > 0) {
+                        const chunksSnap = await db.collection("farms").doc(doc.id).collection("chunks").orderBy("index").get();
+                        let parts = [];
+                        chunksSnap.forEach(cDoc => parts.push(cDoc.data().content));
+                        fullZipStr = parts.join('');
+                    }
+
                     if (fullZipStr) parsedGeojson = await decompressGeoJSON(fullZipStr);
 
                     farmsDatabase[doc.id] = { name: data.name || '', producer: data.producer || '', location: data.location || '', area: data.area || 0, geojson: parsedGeojson };
                 }
 
+                const usersSnap = await db.collection("users").get();
+                usersDatabase = [];
+                usersSnap.forEach(doc => {
+                    usersDatabase.push({ email: doc.id, ...doc.data() });
+                });
+
                 populateFarmSelector();
+                renderAdminTables();
             } catch (err) { console.error("Erro ao carregar dados da nuvem:", err); }
+        }
+
+        function renderAdminTables() {
+            const farmsBody = document.getElementById('farms-table-body');
+            const usersBody = document.getElementById('users-table-body');
+            if (!farmsBody || !usersBody) return;
+
+            farmsBody.innerHTML = Object.keys(farmsDatabase).map(k => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3">
+                        <span class="font-bold block text-slate-900">${farmsDatabase[k].name}</span>
+                        <span class="text-[11px] font-semibold text-emerald-700 block"><i class="fa-solid fa-user text-[10px] mr-1"></i>${farmsDatabase[k].producer || 'Produtor Não Informado'}</span>
+                    </td>
+                    <td class="p-3 text-slate-500">${farmsDatabase[k].location}</td>
+                    <td class="p-3 font-semibold text-emerald-600">${farmsDatabase[k].area} ha</td>
+                    <td class="p-3 text-right">
+                        <button onclick="deleteFarm('${k}')" class="text-red-600 hover:text-red-800 font-bold"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            usersBody.innerHTML = usersDatabase.map((u) => {
+                let farmNames = 'Todas';
+                if (u.farms && !u.farms.includes('all')) {
+                    farmNames = u.farms.map(fKey => farmsDatabase[fKey] ? farmsDatabase[fKey].name : fKey).join(', ');
+                }
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3 font-bold">${u.name || 'Cliente'}</td>
+                        <td class="p-3 font-mono text-slate-600">${u.email}</td>
+                        <td class="p-3 text-slate-500 font-semibold">${farmNames}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="deleteUser('${u.email}')" class="text-red-600 hover:text-red-800 font-bold"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function handleCreateFarmDirect(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            if (currentUserRole !== 'admin') {
+                alert("Apenas administradores master podem cadastrar fazendas!");
+                return false;
+            }
+
+            const idInput = document.getElementById('farm-id');
+            const producerInput = document.getElementById('farm-producer');
+            const nameInput = document.getElementById('farm-name');
+            const locationInput = document.getElementById('farm-location');
+            const areaInput = document.getElementById('farm-area');
+
+            const id = idInput.value.trim().toLowerCase().replace(/\s+/g, '_');
+            const producer = producerInput.value.trim();
+            const name = nameInput.value.trim();
+            const location = locationInput.value.trim();
+            const area = parseFloat(areaInput.value);
+
+            if (!id || !name || !producer) {
+                alert("Por favor, preencha o ID, o Nome do Produtor e o Nome da propriedade!");
+                return false;
+            }
+
+            const initialGeoJSON = { "type": "FeatureCollection", "features": [] };
+
+            try {
+                const compressedZip = await compressGeoJSON(initialGeoJSON);
+                const payloadToSave = { 
+                    name: name, 
+                    producer: producer,
+                    location: location, 
+                    area: area, 
+                    geojsonZip: compressedZip,
+                    isChunked: false
+                };
+
+                await db.collection("farms").doc(id).set(payloadToSave);
+                farmsDatabase[id] = { name: name, producer: producer, location: location, area: area, geojson: initialGeoJSON };
+
+                populateFarmSelector();
+                renderAdminTables();
+                alert(`Fazenda ${name} (${producer}) cadastrada com sucesso na nuvem!`);
+                
+                idInput.value = '';
+                producerInput.value = '';
+                nameInput.value = '';
+                locationInput.value = '';
+                areaInput.value = '';
+            } catch (err) {
+                console.error("Erro ao salvar fazenda:", err);
+                alert("Falha ao salvar fazenda na nuvem: " + err.message);
+            }
+            return false;
+        }
+
+        async function handleCreateUser(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            if (currentUserRole !== 'admin') {
+                alert("Apenas administradores master podem gerenciar acessos!");
+                return false;
+            }
+
+            const nameInput = document.getElementById('new-name');
+            const emailInput = document.getElementById('new-email');
+            const chkAll = document.getElementById('chk-farm-all');
+            const chkItems = document.querySelectorAll('.chk-farm-item:checked');
+
+            const name = nameInput.value.trim();
+            const email = emailInput.value.trim().toLowerCase();
+
+            if (!email) {
+                alert("Por favor, preencha o e-mail Google!");
+                return false;
+            }
+
+            let selectedFarms = [];
+            if (chkAll && chkAll.checked) {
+                selectedFarms = ['all'];
+            } else {
+                chkItems.forEach(chk => selectedFarms.push(chk.value));
+            }
+
+            if (!selectedFarms.length) {
+                alert("Por favor, marque pelo menos uma fazenda ou selecione 'TODAS AS FAZENDAS'!");
+                return false;
+            }
+
+            const userObj = { name: name, role: 'client', farms: selectedFarms };
+
+            try {
+                await db.collection("users").doc(email).set(userObj);
+                await loadCloudData();
+                alert(`E-mail ${email} autorizado com sucesso para as fazendas selecionadas!`);
+                
+                nameInput.value = '';
+                emailInput.value = '';
+                if(chkAll) chkAll.checked = false;
+                toggleAllFarmsCheckboxes(chkAll);
+            } catch (err) {
+                console.error("Erro ao autorizar usuário:", err);
+                alert("Falha ao autorizar e-mail na nuvem: " + err.message);
+            }
+            return false;
+        }
+
+        async function deleteFarm(key) {
+            if (currentUserRole !== 'admin') return;
+            if(confirm("Deseja excluir esta fazenda do banco na nuvem?")) {
+                try {
+                    await db.collection("farms").doc(key).delete();
+                    delete farmsDatabase[key];
+                    populateFarmSelector();
+                    renderAdminTables();
+                } catch (err) { alert("Erro ao excluir fazenda: " + err.message); }
+            }
+        }
+
+        async function deleteUser(email) {
+            if (currentUserRole !== 'admin') return;
+            if(confirm("Deseja remover a permissão deste e-mail?")) {
+                try {
+                    await db.collection("users").doc(email).delete();
+                    await loadCloudData();
+                } catch (err) { alert("Erro ao excluir permissão: " + err.message); }
+            }
+        }
+
+        function toggleAllFarmsCheckboxes(masterChk) {
+            const items = document.querySelectorAll('.chk-farm-item');
+            items.forEach(chk => chk.checked = masterChk.checked);
+        }
+
+        function switchTab(tab) {
+            ['maps', 'vrate', 'seeds', 'users'].forEach(t => {
+                const el = document.getElementById(`content-${t}`);
+                const btn = document.getElementById(`tab-${t}`);
+                if (el) el.classList.add('hidden');
+                if (btn) btn.classList.remove('bg-slate-800', 'text-white');
+            });
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('bg-slate-800', 'text-white');
+
+            if (tab === 'vrate') {
+                initVRateMap();
+                setTimeout(() => { if (vrateMap) { vrateMap.invalidateSize(); vrateChangeFarm(); } }, 100);
+            } else if (tab === 'seeds') {
+                initSeedsMap();
+                setTimeout(() => { if (seedsMap) { seedsMap.invalidateSize(); seedsChangeFarm(); } }, 100);
+            } else if (tab === 'maps') {
+                setTimeout(() => {
+                    if (mapLeft) mapLeft.invalidateSize();
+                    if (mapRight) mapRight.invalidateSize();
+                    updateGISMap();
+                }, 100);
+            } else if (tab === 'users') {
+                renderAdminTables();
+            }
+        }
+
+        function toggleViewMode() {
+            const mode = document.getElementById('sel-mode').value;
+            const singleBox = document.getElementById('box-single-depth');
+            const diffBox = document.getElementById('box-diff-depth');
+            const rightPane = document.getElementById('right-map-pane');
+            const leftPane = document.getElementById('left-map-pane');
+            const divider = document.getElementById('split-divider');
+
+            if (mode === 'sidebyside') {
+                singleBox.classList.add('hidden');
+                diffBox.classList.remove('hidden');
+                rightPane.style.display = 'block';
+                divider.style.display = 'block';
+                splitPosition = 0.5;
+                divider.style.left = '50%';
+                applySplitWidths();
+                initSplitSlider();
+            } else {
+                singleBox.classList.remove('hidden');
+                diffBox.classList.add('hidden');
+                rightPane.style.display = 'none';
+                divider.style.display = 'none';
+                leftPane.style.width = '100%';
+            }
+
+            setTimeout(() => {
+                if (mapLeft) mapLeft.invalidateSize();
+                if (mapRight) mapRight.invalidateSize();
+                updateGISMap();
+            }, 100);
+        }
+
+        function initSplitSlider() {
+            const divider = document.getElementById('split-divider');
+            const container = document.getElementById('map-container');
+            let isDragging = false;
+
+            divider.onmousedown = function(e) { isDragging = true; e.preventDefault(); };
+            window.onmouseup = function() { isDragging = false; };
+            window.onmousemove = function(e) {
+                if (!isDragging) return;
+                const rect = container.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                if (x < 0) x = 0;
+                if (x > rect.width) x = rect.width;
+                splitPosition = x / rect.width;
+                divider.style.left = (splitPosition * 100) + '%';
+                applySplitWidths();
+            };
+        }
+
+        function applySplitWidths() {
+            const leftPane = document.getElementById('left-map-pane');
+            const rightPane = document.getElementById('right-map-pane');
+            const pct = (splitPosition * 100).toFixed(1);
+
+            leftPane.style.width = pct + '%';
+            rightPane.style.width = (100 - pct).toFixed(1) + '%';
+
+            if (mapLeft) mapLeft.invalidateSize();
+            if (mapRight) mapRight.invalidateSize();
         }
 
         function populateFarmSelector() {
@@ -585,8 +1238,8 @@
             const vrateSelect = document.getElementById('vrate-sel-farm');
             const seedsSelect = document.getElementById('seeds-sel-farm');
 
-            if (farmSelect) farmSelect.innerHTML = '';
-            if (vrateSelect) vrateSelect.innerHTML = '';
+            farmSelect.innerHTML = '';
+            vrateSelect.innerHTML = '';
             if (seedsSelect) seedsSelect.innerHTML = '';
 
             let keysToDisplay = Object.keys(farmsDatabase);
@@ -597,11 +1250,24 @@
             keysToDisplay.forEach(key => {
                 if (farmsDatabase[key]) {
                     const farm = farmsDatabase[key];
-                    if (farmSelect) farmSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
-                    if (vrateSelect) vrateSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
+                    farmSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
+                    vrateSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
                     if (seedsSelect) seedsSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
                 }
             });
+
+            const checkboxContainer = document.getElementById('new-farm-checkboxes');
+            if (checkboxContainer) {
+                checkboxContainer.innerHTML = Object.keys(farmsDatabase).map(k => `
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                        <input type="checkbox" name="chk-user-farms" value="${k}" class="chk-farm-item h-4 w-4 text-origens-green rounded">
+                        <span>${farmsDatabase[k].name} ${farmsDatabase[k].producer ? `(${farmsDatabase[k].producer})` : ''} - ${farmsDatabase[k].location}</span>
+                    </label>
+                `).join('');
+            }
+
+            populateSafraSelector();
+            populateTalhaoSelector();
         }
 
         function changeActiveFarm(sourceSelectId) {
@@ -610,6 +1276,9 @@
                 const el = document.getElementById(id);
                 if (el && el.value !== selectedVal) el.value = selectedVal;
             });
+
+            populateSafraSelector();
+            populateTalhaoSelector();
 
             if (document.getElementById('content-seeds') && !document.getElementById('content-seeds').classList.contains('hidden')) {
                 seedsChangeFarm();
@@ -620,41 +1289,680 @@
             }
         }
 
+        function populateSafraSelector() {
+            const selectedFarmKey = document.getElementById('sel-farm').value;
+            const container = document.getElementById('container-safra-checkboxes');
+            if (!container) return;
+
+            if (!selectedFarmKey || !farmsDatabase[selectedFarmKey]) {
+                container.innerHTML = '<span class="text-slate-400 italic">Sem safras salvas</span>';
+                return;
+            }
+
+            const currentGeoJSON = farmsDatabase[selectedFarmKey].geojson || { "type": "FeatureCollection", "features": [] };
+            const safrasSet = new Set();
+            if (currentGeoJSON.features && currentGeoJSON.features.length) {
+                currentGeoJSON.features.forEach(f => {
+                    if (f.properties) {
+                        if (f.properties.safras_historico) Object.keys(f.properties.safras_historico).forEach(s => { if (/^\d{4}$/.test(s)) safrasSet.add(s); });
+                        Object.keys(f.properties).forEach(pKey => {
+                            const detectedSafra = extractSafra(f.properties[pKey]);
+                            if (detectedSafra && /^\d{4}$/.test(detectedSafra)) safrasSet.add(detectedSafra);
+                        });
+                    }
+                });
+            }
+
+            const sortedSafras = Array.from(safrasSet).sort().reverse();
+            if (!sortedSafras.length) {
+                container.innerHTML = '<span class="text-slate-400 italic">Sem safras salvas</span>';
+                return;
+            }
+
+            container.innerHTML = sortedSafras.map((s, idx) => `
+                <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" name="chk-safra-item" value="${s}" ${idx === 0 ? 'checked' : ''} onchange="updateGISMap()" class="chk-safra-item h-3.5 w-3.5 text-origens-green rounded">
+                    <span>Safra ${s}</span>
+                </label>
+            `).join('');
+        }
+
+        function populateTalhaoSelector() {
+            const selectedFarmKey = document.getElementById('sel-farm').value;
+            const container = document.getElementById('container-talhao-checkboxes');
+            if (!container) return;
+
+            if (!selectedFarmKey || !farmsDatabase[selectedFarmKey]) {
+                container.innerHTML = '<span class="text-slate-400 italic">Sem talhões</span>';
+                return;
+            }
+
+            const currentGeoJSON = farmsDatabase[selectedFarmKey].geojson || { "type": "FeatureCollection", "features": [] };
+            const talhoesSet = new Set();
+            if (currentGeoJSON.features && currentGeoJSON.features.length) {
+                currentGeoJSON.features.forEach(f => { if (f.properties && f.properties.Talhao) talhoesSet.add(String(f.properties.Talhao)); });
+            }
+
+            const sortedTalhoes = Array.from(talhoesSet).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+            if (!sortedTalhoes.length) {
+                container.innerHTML = '<span class="text-slate-400 italic">Nenhum talhão cadastrado</span>';
+                return;
+            }
+
+            let html = `
+                <label class="flex items-center gap-2 cursor-pointer font-bold text-emerald-800 border-b pb-1 mb-1 bg-emerald-50/50 p-1 rounded">
+                    <input type="checkbox" id="chk-master-talhao" checked onchange="toggleMasterTalhao(this)" class="h-3.5 w-3.5 text-origens-green rounded">
+                    <span>Selecionar Todos</span>
+                </label>
+            `;
+            html += sortedTalhoes.map(t => `
+                <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700 px-1">
+                    <input type="checkbox" name="chk-talhao-item" value="${t}" checked onchange="syncMasterTalhaoCheck()" class="chk-talhao-item h-3.5 w-3.5 text-origens-green rounded">
+                    <span>Talhão ${t}</span>
+                </label>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function toggleMasterTalhao(masterChk) {
+            document.querySelectorAll('.chk-talhao-item').forEach(i => i.checked = masterChk.checked);
+            updateGISMap();
+        }
+
+        function syncMasterTalhaoCheck() {
+            const items = document.querySelectorAll('.chk-talhao-item');
+            const master = document.getElementById('chk-master-talhao');
+            if (master && items.length) master.checked = Array.from(items).every(i => i.checked);
+            updateGISMap();
+        }
+
+        function toggleAllSafras() {
+            const items = document.querySelectorAll('.chk-safra-item');
+            if (!items.length) return;
+            const anyUnchecked = Array.from(items).some(i => !i.checked);
+            items.forEach(i => i.checked = anyUnchecked);
+            updateGISMap();
+        }
+
+        function toggleAllTalhoesBtn() {
+            const master = document.getElementById('chk-master-talhao');
+            if (master) {
+                master.checked = !master.checked;
+                toggleMasterTalhao(master);
+            }
+        }
+
+        function toggleLayers() {
+            updateGISMap();
+        }
+
+        function getSelectedSafras() {
+            return Array.from(document.querySelectorAll('.chk-safra-item:checked')).map(i => i.value);
+        }
+
+        function getSelectedTalhoes() {
+            const checked = document.querySelectorAll('.chk-talhao-item:checked');
+            return Array.from(checked).map(i => i.value);
+        }
+
         function initLeafletMap() {
             if (!mapLeft) {
                 mapLeft = L.map('map-left').setView([-12.592, -58.012], 13);
                 mapRight = L.map('map-right', { zoomControl: false }).setView([-12.592, -58.012], 13);
+
                 changeBasemap();
+
+                mapLeft.on('move', () => { if (!isSyncing) { isSyncing = true; mapRight.setView(mapLeft.getCenter(), mapLeft.getZoom(), { animate: false }); isSyncing = false; } });
+                mapRight.on('move', () => { if (!isSyncing) { isSyncing = true; mapLeft.setView(mapRight.getCenter(), mapRight.getZoom(), { animate: false }); isSyncing = false; } });
+
+                populateFarmSelector();
             }
         }
 
         function changeBasemap() {
             if (!mapLeft || !mapRight) return;
-            const esriUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+            const selectedType = document.getElementById('sel-basemap').value;
+
             if (tileLayerLeft) mapLeft.removeLayer(tileLayerLeft);
             if (tileLayerRight) mapRight.removeLayer(tileLayerRight);
 
+            const esriUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
             tileLayerLeft = L.tileLayer(esriUrl, { attribution: 'Origens &copy; Esri', maxZoom: 18 }).addTo(mapLeft);
             tileLayerRight = L.tileLayer(esriUrl, { attribution: 'Esri', maxZoom: 18 }).addTo(mapRight);
             updateGISMap();
         }
 
-        function updateGISMap() {
-            const selectedFarmKey = document.getElementById('sel-farm') ? document.getElementById('sel-farm').value : null;
-            if (!selectedFarmKey || !farmsDatabase[selectedFarmKey]) return;
+        function getQGISRules(param) {
+            if (param === 'S') {
+                return [
+                    { min: 21.01, max: Infinity, color: '#2B75E2', label: 'Nível 1 - > 21,0' },
+                    { min: 18.1, max: 21.0, color: '#265922', label: 'Nível 2 - 18,1 a 21,0' },
+                    { min: 15.1, max: 18.0, color: '#32D827', label: 'Nível 3 - 15,1 a 18,0' },
+                    { min: 12.1, max: 15.0, color: '#DCF5AA', label: 'Nível 4 - 12,1 a 15,0' },
+                    { min: 9.1, max: 12.0, color: '#FFFF00', label: 'Nível 5 - 9,1 a 12,0' },
+                    { min: 6.1, max: 9.0, color: '#FF961F', label: 'Nível 6 - 6,1 a 9,0' },
+                    { min: 3.1, max: 6.0, color: '#E0482B', label: 'Nível 7 - 3,1 a 6,0' },
+                    { min: 0, max: 3.09, color: '#801A1A', label: 'Nível 8 - < 3,1' }
+                ];
+            } else if (param === 'Ca') {
+                return [
+                    { min: 4.01, max: Infinity, color: '#FFFFE0', label: 'Nível 1 - >4.0' },
+                    { min: 3.1, max: 4.0, color: '#FFF5AA', label: 'Nível 2 - 3.1 a 4.0' },
+                    { min: 2.6, max: 3.0, color: '#FFE16B', label: 'Nível 3 - 2.6 a 3.0' },
+                    { min: 2.1, max: 2.5, color: '#FFC83B', label: 'Nível 4 - 2.1 a 2.5' },
+                    { min: 1.6, max: 2.0, color: '#FF961F', label: 'Nível 5 - 1.6 a 2.0' },
+                    { min: 1.1, max: 1.5, color: '#E65D0F', label: 'Nível 6 - 1.1 a 1.5' },
+                    { min: 0.6, max: 1.0, color: '#C83700', label: 'Nível 7 - 0.6 a 1.0' },
+                    { min: 0, max: 0.59, color: '#802000', label: 'Nível 8 - <0.6' }
+                ];
+            } else if (param === 'Ca%') {
+                return [
+                    { min: 0, max: 20, color: '#802000', label: 'Nível 1 - <20' },
+                    { min: 21, max: 30, color: '#E65D0F', label: 'Nível 2 - 21 a 30' },
+                    { min: 31, max: 40, color: '#FF961F', label: 'Nível 3 - 31 a 40' },
+                    { min: 41, max: 50, color: '#FFC83B', label: 'Nível 4 - 41 a 50' },
+                    { min: 51, max: 60, color: '#FFF5AA', label: 'Nível 5 - 51 a 60' },
+                    { min: 60.1, max: Infinity, color: '#FFFFE0', label: 'Nível 6 - >60' }
+                ];
+            } else if (param === 'Mg') {
+                return [
+                    { min: 1.51, max: Infinity, color: '#FFFFE0', label: 'Nível 1 - >1.5' },
+                    { min: 1.1, max: 1.5, color: '#FFE16B', label: 'Nível 2 - 1.1 a 1.5' },
+                    { min: 0.8, max: 1.0, color: '#FF961F', label: 'Nível 3 - 0.8 a 1.0' },
+                    { min: 0.5, max: 0.7, color: '#E65D0F', label: 'Nível 4 - 0.5 a 0.7' },
+                    { min: 0, max: 0.49, color: '#802000', label: 'Nível 5 - <0.5' }
+                ];
+            } else if (param === 'Mg%') {
+                return [
+                    { min: 0, max: 5, color: '#802000', label: 'Nível 1 - <5' },
+                    { min: 5.1, max: 10, color: '#E65D0F', label: 'Nível 2 - 5,1 a 10' },
+                    { min: 10.1, max: 15, color: '#FF961F', label: 'Nível 3 - 10,1 a 15' },
+                    { min: 15.1, max: 20, color: '#FFC83B', label: 'Nível 4 - 15,1 a 20' },
+                    { min: 20.1, max: 25, color: '#FFF5AA', label: 'Nível 5 - 20,1 a 25' },
+                    { min: 25.1, max: Infinity, color: '#FFFFE0', label: 'Nível 6 - >25' }
+                ];
+            } else if (param === 'K') {
+                return [
+                    { min: 100.1, max: Infinity, color: '#FFFFE0', label: 'Nível 1 - >100' },
+                    { min: 81, max: 100, color: '#FFF5AA', label: 'Nível 2 - 81 a 100' },
+                    { min: 61, max: 80, color: '#FFC83B', label: 'Nível 3 - 61 a 80' },
+                    { min: 41, max: 60, color: '#FF961F', label: 'Nível 4 - 41 a 60' },
+                    { min: 20, max: 40, color: '#E65D0F', label: 'Nível 5 - 20 a 40' },
+                    { min: 0, max: 19.9, color: '#802000', label: 'Nível 6 - <20' }
+                ];
+            } else if (param === 'K%') {
+                return [
+                    { min: 0, max: 1, color: '#802000', label: 'Nível 1 - <1' },
+                    { min: 1.1, max: 2, color: '#E65D0F', label: 'Nível 2 - 1,1 a 2' },
+                    { min: 2.1, max: 3, color: '#FF961F', label: 'Nível 3 - 2,1 a 3' },
+                    { min: 3.1, max: 4, color: '#FFC83B', label: 'Nível 4 - 3,1 a 4' },
+                    { min: 4.1, max: 5, color: '#FFF5AA', label: 'Nível 5 - 4,1 a 5' },
+                    { min: 5.1, max: Infinity, color: '#FFFFE0', label: 'Nível 6 - >6' }
+                ];
+            } else if (param === 'Argila') {
+                return [
+                    { min: 600, max: Infinity, color: '#102A83', label: '> 600 - Argilosa' },
+                    { min: 551, max: 600, color: '#2B75E2', label: '551 a 600 - Argilosa' },
+                    { min: 501, max: 550, color: '#00FFFF', label: '501 a 550 - Argilosa' },
+                    { min: 451, max: 500, color: '#265922', label: '451 a 500 - Argilosa' },
+                    { min: 401, max: 450, color: '#66A13B', label: '401 a 450 - Argilosa' },
+                    { min: 351, max: 400.99, color: '#BDE38B', label: '351 a 401 - Argilosa' },
+                    { min: 301, max: 350.99, color: '#FFF3B3', label: '301 a 350 - Média' },
+                    { min: 251, max: 300.99, color: '#FFFF00', label: '251 a 300 - Média' },
+                    { min: 201, max: 250.99, color: '#FF9999', label: '201 a 250 - Média' },
+                    { min: 151, max: 200.99, color: '#FF8811', label: '151 a 200 - Média' },
+                    { min: 101, max: 150.99, color: '#E0482B', label: '101 a 151 - Arenosa' },
+                    { min: 50, max: 100.99, color: '#B83227', label: '50 a 100 - Arenosa' },
+                    { min: 0, max: 49.99, color: '#5C1D1D', label: '< 50 - Arenosa' }
+                ];
+            } else if (param === 'MO' || param === 'MO (%)') {
+                return [
+                    { min: 45, max: Infinity, color: '#102A83', label: 'Nível 1 - > 45' },
+                    { min: 40, max: 45, color: '#265922', label: 'Nível 2 - 40 - 45' },
+                    { min: 35, max: 39.9, color: '#32D827', label: 'Nível 3 - 35 - 40' },
+                    { min: 30, max: 34.9, color: '#DCF5AA', label: 'Nível 4 - 30 - 35' },
+                    { min: 25, max: 29.9, color: '#FFF3B3', label: 'Nível 5 - 25 - 30' },
+                    { min: 20, max: 24.9, color: '#FFFF00', label: 'Nível 6 - 20 - 25' },
+                    { min: 15, max: 19.9, color: '#FF8811', label: 'Nível 7 - 15 - 20' },
+                    { min: 10, max: 14.9, color: '#E0482B', label: 'Nível 8 - 10 - 15' },
+                    { min: 0, max: 9.9, color: '#801A1A', label: 'Nível 9 - < 10' }
+                ];
+            } else if (param === 'Classes de MO') {
+                return [
+                    { min: 1, max: 1, color: '#102A83', label: 'Alta' },
+                    { min: 2, max: 2, color: '#265922', label: 'Adequada' },
+                    { min: 3, max: 3, color: '#FF8811', label: 'Média' },
+                    { min: 4, max: 4, color: '#801A1A', label: 'Baixa' }
+                ];
+            } else if (param === 'Classes de P') {
+                return [
+                    { min: 5, max: 5, color: '#2B75E2', label: 'Classe 5 - Alto' },
+                    { min: 4, max: 4, color: '#265922', label: 'Classe 4 - Adequado' },
+                    { min: 3, max: 3, color: '#FFFF00', label: 'Classe 3 - Médio' },
+                    { min: 2, max: 2, color: '#FF8811', label: 'Classe 2 - Baixo' },
+                    { min: 1, max: 1, color: '#801A1A', label: 'Classe 1 - Muito Baixo' }
+                ];
+            } else if (param === 'pH_água') {
+                return [
+                    { min: 6.6, max: Infinity, color: '#FFFFE0', label: 'Nível 1 - > 6.6' },
+                    { min: 6.3, max: 6.6, color: '#FFF0AA', label: 'Nível 2 - 6.3 - 6.6' },
+                    { min: 6.1, max: 6.29, color: '#FFE16B', label: 'Nível 3 - 6.1 - 6.3' },
+                    { min: 5.8, max: 6.09, color: '#FFC83B', label: 'Nível 4 - 5.8 - 6.0' },
+                    { min: 5.5, max: 5.79, color: '#FF961F', label: 'Nível 5 - 5.5 - 5.7' },
+                    { min: 5.2, max: 5.49, color: '#E65D0F', label: 'Nível 6 - 5.2 - 5.4' },
+                    { min: 5.0, max: 5.19, color: '#C83700', label: 'Nível 7 - 5.0 a 5.1' },
+                    { min: 0, max: 4.99, color: '#802000', label: 'Nível 8 - < 4.9' }
+                ];
+            } else if (param === 'pH_CaCl2') {
+                return [
+                    { min: 6.0, max: Infinity, color: '#FFFFE0', label: 'Nível 1 - > 6.0' },
+                    { min: 5.7, max: 6.0, color: '#FFF5AA', label: 'Nível 2 - 5.7 - 6.0' },
+                    { min: 5.4, max: 5.69, color: '#FFE16B', label: 'Nível 3 - 5.4 - 5.6' },
+                    { min: 5.1, max: 5.39, color: '#FFC83B', label: 'Nível 4 - 5.1 - 5.3' },
+                    { min: 4.8, max: 5.09, color: '#FF961F', label: 'Nível 5 - 4.8 - 5.0' },
+                    { min: 4.5, max: 4.79, color: '#E65D0F', label: 'Nível 6 - 4.5 - 4.7' },
+                    { min: 4.2, max: 4.49, color: '#C83700', label: 'Nível 7 - 4.2 - 4.4' },
+                    { min: 0, max: 4.19, color: '#802000', label: 'Nível 8 - < 4.2' }
+                ];
+            } else if (param === 'CTC') {
+                return [
+                    { min: 9.0, max: Infinity, color: '#2B75E2', label: 'Nível 1 - > 9' },
+                    { min: 7.6, max: 9.0, color: '#265922', label: 'Nível 2 - 7.6 a 9' },
+                    { min: 6.1, max: 7.59, color: '#32D827', label: 'Nível 3 - 6.1 a 7.5' },
+                    { min: 4.6, max: 6.09, color: '#FF961F', label: 'Nível 4 - 4.6 a 6' },
+                    { min: 3.0, max: 4.59, color: '#E0482B', label: 'Nível 5 - 3 a 4.5' },
+                    { min: 0, max: 2.99, color: '#802000', label: 'Nível 6 - < 3' }
+                ];
+            } else if (param === 'V%') {
+                return [
+                    { min: 74, max: Infinity, color: '#FFFFE0', label: 'Nível 1 - > 74' },
+                    { min: 64, max: 74, color: '#FFF5AA', label: 'Nível 2 - 64 a 74' },
+                    { min: 54, max: 63.9, color: '#FFE16B', label: 'Nível 3 - 54 a 64' },
+                    { min: 44, max: 53.9, color: '#FFC83B', label: 'Nível 4 - 44 a 54' },
+                    { min: 34, max: 43.9, color: '#FF961F', label: 'Nível 5 - 34 a 44' },
+                    { min: 24, max: 33.9, color: '#E65D0F', label: 'Nível 6 - 24 a 34' },
+                    { min: 15, max: 23.9, color: '#C83700', label: 'Nível 7 - 15 a 24' },
+                    { min: 0, max: 14.9, color: '#802000', label: 'Nível 8 - < 15' }
+                ];
+            } else if (param === 'Al') {
+                return [
+                    { min: 0.41, max: Infinity, color: '#802000', label: 'Nível 4 - >0.4' },
+                    { min: 0.31, max: 0.40, color: '#FF961F', label: 'Nível 3 - 0.3 a 0.4' },
+                    { min: 0.10, max: 0.30, color: '#265922', label: 'Nível 2 - 0.1 a 0.3' },
+                    { min: 0.00, max: 0.09, color: '#2B75E2', label: 'Nível 1 - <0.1' }
+                ];
+            } else if (param === 'Sat. Al') {
+                return [
+                    { min: 40.1, max: Infinity, color: '#802000', label: 'Nível 6 - > 41%' },
+                    { min: 30.1, max: 40.0, color: '#E65D0F', label: 'Nível 5 - 31 a 40 %' },
+                    { min: 20.1, max: 30.0, color: '#FF961F', label: 'Nível 4 - 21 a 30 %' },
+                    { min: 10.1, max: 20.0, color: '#FFC83B', label: 'Nível 3 - 11 a 20 %' },
+                    { min: 0.1, max: 10.0, color: '#FFE16B', label: 'Nível 2 - 01 a 10 %' },
+                    { min: 0.0, max: 0.0, color: '#FFFFE0', label: 'Nível 1 - 0' }
+                ];
+            } else if (param === 'P') {
+                return [
+                    { min: 18.1, max: Infinity, color: '#2B75E2', label: 'Alto' },
+                    { min: 12.1, max: 18.0, color: '#265922', label: 'Adequado' },
+                    { min: 8.1, max: 12.0, color: '#FFFF00', label: 'Médio' },
+                    { min: 3.1, max: 8.0, color: '#FF8811', label: 'Baixo' },
+                    { min: 0, max: 3.0, color: '#801A1A', label: 'Muito Baixo' }
+                ];
+            } else {
+                return [
+                    { min: 3.0, max: Infinity, color: '#265922', label: 'Nível Adequado' },
+                    { min: 1.5, max: 2.99, color: '#FFFF00', label: 'Nível Médio' },
+                    { min: 0, max: 1.49, color: '#E0482B', label: 'Nível Baixo' }
+                ];
+            }
+        }
 
+        function getMatchedRule(rawVal, rules) {
+            if (rawVal === null || rawVal === undefined || rawVal === '') return null;
+            const num = parseNumber(rawVal);
+            if (num !== null) {
+                const matched = rules.find(r => num >= r.min && num <= r.max);
+                if (matched) return matched;
+            }
+            const str = String(rawVal).trim().toLowerCase();
+            return rules.find(r => r.label.toLowerCase().includes(str) || str.includes(r.label.toLowerCase())) || null;
+        }
+
+        function updateGISMap() {
+            if (!mapLeft) return;
+            const selectedFarmKey = document.getElementById('sel-farm').value;
             const farmObj = farmsDatabase[selectedFarmKey];
             const currentGeoJSON = farmObj ? farmObj.geojson : { "type": "FeatureCollection", "features": [] };
 
             if (geojsonLayerLeft) mapLeft.removeLayer(geojsonLayerLeft);
+            if (geojsonLayerRight) mapRight.removeLayer(geojsonLayerRight);
 
-            geojsonLayerLeft = L.geoJSON(currentGeoJSON, {
-                style: { fillColor: '#1e3a8a', fillOpacity: 0.6, color: '#1d4ed8', weight: 1.5 }
-            }).addTo(mapLeft);
+            const legendTitle = document.getElementById('legend-title');
+            const legendItems = document.getElementById('legend-items');
 
-            if (geojsonLayerLeft.getBounds().isValid()) mapLeft.fitBounds(geojsonLayerLeft.getBounds());
+            if (!currentGeoJSON.features || !currentGeoJSON.features.length) {
+                legendTitle.innerText = `${farmObj ? farmObj.name : 'Fazenda'}`;
+                legendItems.innerHTML = `<span class="text-amber-600 font-bold block text-xs">Nenhum projeto importado para esta fazenda.</span>`;
+                return;
+            }
+
+            const selectedTalhoes = getSelectedTalhoes();
+            const selectedSafras = getSelectedSafras();
+            const param = document.getElementById('sel-param').value;
+            const mode = document.getElementById('sel-mode').value;
+            const depth = document.getElementById('sel-depth').value;
+            const rules = getQGISRules(param);
+
+            const showBoundary = document.getElementById('chk-boundary') ? document.getElementById('chk-boundary').checked : true;
+            const showLabels = document.getElementById('chk-labels') ? document.getElementById('chk-labels').checked : true;
+            const showValues = document.getElementById('chk-values') ? document.getElementById('chk-values').checked : true;
+
+            const buildLayer = (depthKey) => L.geoJSON(currentGeoJSON, {
+                filter: f => !selectedTalhoes.length || selectedTalhoes.includes(String(f.properties.Talhao)),
+                style: f => {
+                    const rawVal = getFeatureDepthData(f, depthKey, selectedSafras)[param];
+                    const matched = getMatchedRule(rawVal, rules);
+                    let color = matched ? matched.color : '#94a3b8';
+
+                    return { 
+                        fillColor: color, 
+                        fillOpacity: 0.85, 
+                        color: showBoundary ? '#1d4ed8' : 'transparent', 
+                        weight: showBoundary ? 1.5 : 0 
+                    };
+                },
+                onEachFeature: (f, layer) => {
+                    const depthData = getFeatureDepthData(f, depthKey, selectedSafras);
+                    const rawVal = depthData[param];
+                    const displayVal = formatDisplayValue(rawVal);
+                    const subName = f.properties.Subs || f.properties.Subdivisao || f.properties.Talhao || 'Gleba';
+
+                    layer.bindPopup(`<b>${subName} (Talhão ${f.properties.Talhao || 'N/A'})</b><br>${param}: <b>${displayVal}</b>`);
+
+                    let labelText = "";
+                    if (showLabels && showValues) {
+                        labelText = `${subName}: ${displayVal}`;
+                    } else if (showLabels) {
+                        labelText = `${subName}`;
+                    } else if (showValues) {
+                        labelText = `${displayVal}`;
+                    }
+
+                    if (labelText !== "") {
+                        layer.bindTooltip(labelText, { 
+                            permanent: true, 
+                            direction: 'center', 
+                            className: 'bg-slate-900/80 text-white font-bold text-[10px] px-1 py-0.5 rounded shadow text-center border-0' 
+                        });
+                    }
+                }
+            });
+
+            if (mode === 'sidebyside') {
+                const depthA = document.getElementById('sel-depth-a').value;
+                const depthB = document.getElementById('sel-depth-b').value;
+                geojsonLayerLeft = buildLayer(depthA).addTo(mapLeft);
+                geojsonLayerRight = buildLayer(depthB).addTo(mapRight);
+            } else {
+                geojsonLayerLeft = buildLayer(depth).addTo(mapLeft);
+            }
+
+            if (geojsonLayerLeft && geojsonLayerLeft.getBounds().isValid()) {
+                mapLeft.fitBounds(geojsonLayerLeft.getBounds());
+                if (mode === 'sidebyside' && mapRight) mapRight.fitBounds(geojsonLayerLeft.getBounds());
+            }
+
+            const hasValidData = currentGeoJSON.features.some(f => {
+                const val = getFeatureDepthData(f, depth, selectedSafras)[param];
+                return val !== null && val !== undefined && val !== '';
+            });
+
+            legendTitle.innerText = `${param}`;
+
+            if (!hasValidData) {
+                legendItems.innerHTML = `
+                    <div class="p-2 bg-amber-50 border border-amber-200 rounded text-amber-800 text-[11px] font-semibold space-y-1">
+                        <span class="font-bold block"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Sem dados para "${param}"</span>
+                        <span>A planilha desta safra não possui valores para este parâmetro. Tente selecionar: <b>CTC, MO, Fósforo (P), Potássio (K), pH CaCl2, V% ou Classes de MO</b>.</span>
+                    </div>
+                `;
+            } else {
+                legendItems.innerHTML = rules.map(r => `<div class="flex items-center gap-2"><div class="w-3.5 h-3.5 rounded" style="background:${r.color}"></div><span>${r.label}</span></div>`).join('');
+            }
         }
 
+        // =========================================================================
+        // MÓDULO DE TAXA VARIÁVEL DE FERTILIZANTES
+        // =========================================================================
+        function initVRateMap() {
+            if (!vrateMap) {
+                vrateMap = L.map('vrate-map').setView([-12.592, -58.012], 13);
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Origens &copy; Esri', maxZoom: 18
+                }).addTo(vrateMap);
+            }
+            vrateChangeFarm();
+        }
+
+        function vrateChangeFarm() {
+            if (!vrateMap) return;
+            const farmKey = document.getElementById('vrate-sel-farm').value;
+            const farmObj = farmsDatabase[farmKey];
+            if (!farmObj || !farmObj.geojson) return;
+
+            vrateCustomGeoJSON = farmObj.geojson;
+
+            if (vrateGeojsonLayer) vrateMap.removeLayer(vrateGeojsonLayer);
+
+            vrateGeojsonLayer = L.geoJSON(vrateCustomGeoJSON, {
+                style: { fillColor: '#cbd5e1', fillOpacity: 0.4, color: '#2563eb', weight: 1.5 }
+            }).addTo(vrateMap);
+
+            if (vrateGeojsonLayer.getBounds().isValid()) vrateMap.fitBounds(vrateGeojsonLayer.getBounds());
+        }
+
+        function vrateUpdateMap() {
+            if (!vrateMap || !vrateProcessedData.length) return;
+            const targetGeoJSON = vrateCustomGeoJSON || (farmsDatabase[document.getElementById('vrate-sel-farm').value] ? farmsDatabase[document.getElementById('vrate-sel-farm').value].geojson : null);
+            if (!targetGeoJSON) return;
+
+            const product = document.getElementById('vrate-product').value;
+            const unit = document.getElementById('vrate-unit').value;
+            const unitStr = unit === 'kg_ha' ? 'kg/ha' : 't/ha';
+
+            const showBoundary = document.getElementById('vrate-chk-boundary') ? document.getElementById('vrate-chk-boundary').checked : true;
+            const showLabels = document.getElementById('vrate-chk-labels') ? document.getElementById('vrate-chk-labels').checked : false;
+            const showValues = document.getElementById('vrate-chk-values') ? document.getElementById('vrate-chk-values').checked : true;
+
+            const vrateAscDoses = Array.from(new Set(vrateUniqueDoses)).sort((a, b) => a - b);
+            const rdYlGnPalette = getRdYlGnPalette(vrateAscDoses.length);
+
+            let doseColorMap = {};
+            vrateAscDoses.forEach((d, i) => {
+                doseColorMap[d] = rdYlGnPalette[i];
+            });
+
+            if (vrateGeojsonLayer) vrateMap.removeLayer(vrateGeojsonLayer);
+
+            vrateGeojsonLayer = L.geoJSON(targetGeoJSON, {
+                style: f => {
+                    let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
+                    let subClean = cleanString(rawSub);
+                    let doseObj = vrateDoseMap[subClean];
+
+                    let color = '#f1f5f9';
+                    let fillOpacity = 0.2;
+
+                    if (doseObj && doseObj.hasValue) {
+                        fillOpacity = 0.85;
+                        if (doseObj.dose > 0 && doseColorMap[doseObj.dose]) {
+                            color = doseColorMap[doseObj.dose];
+                        }
+                    }
+
+                    return { 
+                        fillColor: color, 
+                        fillOpacity: fillOpacity, 
+                        color: showBoundary ? '#1e3a8a' : 'transparent', 
+                        weight: showBoundary ? 1.5 : 0 
+                    };
+                },
+                onEachFeature: (f, layer) => {
+                    let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
+                    let subClean = cleanString(rawSub);
+                    let doseObj = vrateDoseMap[subClean];
+                    let dose = (doseObj && doseObj.hasValue) ? Math.round(doseObj.dose) : 0;
+                    let subName = f.properties.Subs || f.properties.Subdivisao || 'Subdivisão';
+
+                    layer.bindPopup(`
+                        <div class="p-1">
+                            <b class="text-sm text-slate-900 block border-b pb-1">${subName} (Talhão ${f.properties.Talhao || 'N/A'})</b>
+                            <span class="text-xs text-slate-600 block mt-1">Área: <b>${Math.round(f.properties.Area || 0)} ha</b></span>
+                            <span class="text-xs text-slate-800 block">Dose ${product}: <b class="text-amber-600 font-extrabold">${(doseObj && doseObj.hasValue) ? dose + ' ' + unitStr : 'Não Informada'}</b></span>
+                            <span class="text-xs text-slate-800 block">Total Insumo: <b class="text-emerald-600 font-extrabold">${Math.round(dose * parseFloat(f.properties.Area || 0))} ${unit === 'kg_ha' ? 'kg' : 't'}</b></span>
+                        </div>
+                    `);
+
+                    let textLabel = "";
+                    if (showLabels && showValues) textLabel = `${subName}: ${(doseObj && doseObj.hasValue) ? dose + ' ' + unitStr : ''}`;
+                    else if (showLabels) textLabel = `${subName}`;
+                    else if (showValues && doseObj && doseObj.hasValue) textLabel = `${dose} ${unitStr}`;
+
+                    if (textLabel !== "") {
+                        layer.bindTooltip(textLabel, { 
+                            permanent: true, 
+                            direction: 'center', 
+                            className: 'bg-slate-900/80 text-white font-bold text-[10px] px-1 py-0.5 rounded shadow text-center border-0' 
+                        });
+                    }
+                }
+            }).addTo(vrateMap);
+
+            if (vrateGeojsonLayer.getBounds().isValid()) vrateMap.fitBounds(vrateGeojsonLayer.getBounds());
+        }
+
+        function processVRateExcel() {
+            const farmKey = document.getElementById('vrate-sel-farm').value;
+            const fileInput = document.getElementById('vrate-excel-file');
+            const shpInput = document.getElementById('vrate-shp-file');
+            const product = document.getElementById('vrate-product').value;
+            const unit = document.getElementById('vrate-unit').value;
+            const unitStr = unit === 'kg_ha' ? 'kg/ha' : 't/ha';
+
+            if (!fileInput.files.length) { alert('Por favor, selecione a planilha Excel com as recomendações!'); return; }
+
+            const executeVRateLogic = (targetGeoJSON) => {
+                vrateCustomGeoJSON = targetGeoJSON;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet);
+
+                    vrateDoseMap = {};
+                    rows.forEach(r => {
+                        let rawSub = r.Subs || r.SUBS || r.subs || r.Subdivisao || r.Talhao || r.TALHAO || r.Gleba;
+                        if (rawSub) {
+                            let subKey = cleanString(rawSub);
+                            let rawDose = r.Doses !== undefined ? r.Doses : (r.DOSES !== undefined ? r.DOSES : (r.Dose !== undefined ? r.Dose : (r.DOSE !== undefined ? r.DOSE : (r.Recomendacao || r.Taxa))));
+                            
+                            if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
+                                let doseVal = parseNumber(rawDose);
+                                if (doseVal !== null) {
+                                    vrateDoseMap[subKey] = { dose: doseVal, hasValue: true };
+                                }
+                            } else {
+                                vrateDoseMap[subKey] = { dose: 0, hasValue: false };
+                            }
+                        }
+                    });
+
+                    let totalAreaCalculated = 0, totalProductAcc = 0, matchedCount = 0;
+                    vrateProcessedData = [];
+
+                    vrateCustomGeoJSON.features.forEach(f => {
+                        let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
+                        let subClean = cleanString(rawSub);
+                        let doseObj = vrateDoseMap[subClean];
+
+                        let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
+
+                        if (doseObj && doseObj.hasValue) {
+                            totalAreaCalculated += area;
+                            totalProductAcc += (doseObj.dose * area);
+                            matchedCount++;
+
+                            f.properties.Rate = doseObj.dose;
+                            f.properties.DOSE = doseObj.dose;
+                            f.properties.Produto = product;
+
+                            vrateProcessedData.push({ 
+                                talhao: f.properties.Talhao || f.properties.TALHAO || 'N/A', 
+                                subs: f.properties.Subs || f.properties.Subdivisao || 'Gleba', 
+                                area: area, 
+                                dose: doseObj.dose, 
+                                total: (doseObj.dose * area),
+                                hasValue: true
+                            });
+                        }
+                    });
+
+                    vrateUniqueDoses = Array.from(new Set(vrateProcessedData.map(d => Math.round(d.dose)))).sort((a,b) => b - a);
+
+                    vrateUpdateMap();
+
+                    document.getElementById('vrate-summary-box').classList.remove('hidden');
+                    document.getElementById('vrate-sum-prod').innerText = `${product} (${unitStr})`;
+                    document.getElementById('vrate-sum-area').innerText = `${Math.round(totalAreaCalculated)} ha`;
+                    
+                    let avgDose = totalAreaCalculated > 0 ? (totalProductAcc / totalAreaCalculated) : 0;
+                    document.getElementById('vrate-sum-avg').innerText = `${Math.round(avgDose)} ${unitStr}`;
+                    
+                    let totalTon = unit === 'kg_ha' ? (totalProductAcc / 1000) : totalProductAcc;
+                    let finalTotalStr = unit === 'kg_ha' ? `${Math.round(totalTon)} Toneladas (${Math.round(totalProductAcc)} kg)` : `${Math.round(totalTon)} Toneladas`;
+                    document.getElementById('vrate-sum-total').innerText = finalTotalStr;
+
+                    const vrateAscDoses = Array.from(new Set(vrateUniqueDoses)).sort((a, b) => a - b);
+                    const rdYlGnPalette = getRdYlGnPalette(vrateAscDoses.length);
+
+                    let legendHTML = vrateUniqueDoses.map((d) => {
+                        let colorIdx = vrateAscDoses.indexOf(d);
+                        let hexColor = rdYlGnPalette[colorIdx];
+                        return `
+                            <div class="flex items-center gap-2">
+                                <div class="w-3.5 h-3.5 rounded shadow-sm border border-slate-300" style="background:${d > 0 ? hexColor : '#f1f5f9'}"></div>
+                                <span><b>${d}</b> ${unitStr}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    document.getElementById('vrate-legend-items').innerHTML = legendHTML;
+
+                    alert(`Prescrição processada com sucesso!\nForam vinculadas ${matchedCount} áreas preenchidas na planilha.`);
+                };
+                reader.readAsBinaryString(fileInput.files[0]);
+            };
+
+            if (shpInput && shpInput.files.length) {
+                const shpReader = new FileReader();
+                shpReader.onload = function(e) {
+                    shp(e.target.result).then(function(newGeojson) {
+                        let finalGeoJSON = Array.isArray(newGeojson) ? newGeojson[0] : newGeojson;
+                        executeVRateLogic(finalGeoJSON);
+                    }).catch(err => alert("Erro ao ler o Shapefile específico da Taxa Variável."));
+                };
+                shpReader.readAsArrayBuffer(shpInput.files[0]);
+            } else {
+                const farmObj = farmsDatabase[farmKey];
+                executeVRateLogic(farmObj.geojson);
+            }
+        }
+
+        // =========================================================================
+        // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES (LEITURA SEPARADA DE PLANILHAS)
+        // =========================================================================
         function initSeedsMap() {
             if (!seedsMap) {
                 seedsMap = L.map('seeds-map').setView([-12.592, -58.012], 13);
@@ -691,6 +1999,10 @@
             const unit = document.getElementById('seeds-unit').value;
             const unitStr = unit === 'sem_ha' ? 'sem/ha' : (unit === 'mil_ha' ? 'mil sem/ha' : 'sem/m');
 
+            const showBoundary = document.getElementById('seeds-chk-boundary') ? document.getElementById('seeds-chk-boundary').checked : true;
+            const showLabels = document.getElementById('seeds-chk-labels') ? document.getElementById('seeds-chk-labels').checked : false;
+            const showValues = document.getElementById('seeds-chk-values') ? document.getElementById('seeds-chk-values').checked : true;
+
             const seedsAscDoses = Array.from(new Set(seedsUniqueDoses)).sort((a, b) => a - b);
             const rdYlGnPalette = getRdYlGnPalette(seedsAscDoses.length);
 
@@ -722,7 +2034,12 @@
                         }
                     }
 
-                    return { fillColor: color, fillOpacity: fillOpacity, color: '#15803d', weight: 1.5 };
+                    return { 
+                        fillColor: color, 
+                        fillOpacity: fillOpacity, 
+                        color: showBoundary ? '#15803d' : 'transparent', 
+                        weight: showBoundary ? 1.5 : 0 
+                    };
                 },
                 onEachFeature: (f, layer) => {
                     let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
@@ -741,11 +2058,31 @@
                             <span class="text-xs text-slate-800 block">População ${crop}: <b class="text-emerald-600 font-extrabold">${(doseObj && doseObj.hasValue) ? dose + ' ' + unitStr : 'Não Informada'}</b></span>
                         </div>
                     `);
+
+                    let textLabel = "";
+                    if (viewMode === 'cultivar') {
+                        if (showLabels && showValues) textLabel = `${subName}: ${cultivar}`;
+                        else if (showLabels) textLabel = `${subName}`;
+                        else if (showValues) textLabel = `${cultivar}`;
+                    } else {
+                        if (showLabels && showValues) textLabel = `${subName}: ${(doseObj && doseObj.hasValue) ? dose + ' ' + unitStr : ''}`;
+                        else if (showLabels) textLabel = `${subName}`;
+                        else if (showValues && doseObj && doseObj.hasValue) textLabel = `${dose} ${unitStr}`;
+                    }
+
+                    if (textLabel !== "") {
+                        layer.bindTooltip(textLabel, { 
+                            permanent: true, 
+                            direction: 'center', 
+                            className: 'bg-slate-900/80 text-white font-bold text-[10px] px-1 py-0.5 rounded shadow text-center border-0' 
+                        });
+                    }
                 }
             }).addTo(seedsMap);
 
             if (seedsGeojsonLayer.getBounds().isValid()) seedsMap.fitBounds(seedsGeojsonLayer.getBounds());
 
+            // Montar Legenda
             const legendTitle = document.getElementById('seeds-legend-title');
             const legendItems = document.getElementById('seeds-legend-items');
 
@@ -762,17 +2099,19 @@
                 legendItems.innerHTML = seedsUniqueDoses.map((d) => {
                     let colorIdx = seedsAscDoses.indexOf(d);
                     let hexColor = rdYlGnPalette[colorIdx];
+                    let itemCultivar = seedsProcessedData.find(x => Math.round(x.dose) === d)?.cultivar || '';
+                    let cultivarStr = (itemCultivar && itemCultivar !== 'Padrão') ? ` - <i>${itemCultivar}</i>` : '';
                     return `
                         <div class="flex items-center gap-2">
                             <div class="w-3.5 h-3.5 rounded shadow-sm border border-slate-300" style="background:${d > 0 ? hexColor : '#f1f5f9'}"></div>
-                            <span><b>${d}</b> ${unitStr}</span>
+                            <span><b>${d}</b> ${unitStr}${cultivarStr}</span>
                         </div>
                     `;
                 }).join('');
             }
         }
 
-        // SUPORTE A DOLS ARCHIVOS EXCEL SEPARADOS (DOSES E CULTIVARES INDEPENDENTES)
+        // SUPORTE A PROCESSAR DOLS ARCHIVOS EXCEL SEPARADOS (DOSES + CULTIVARES INDEPENDENTES)
         function processSeedsExcel() {
             const farmKey = document.getElementById('seeds-sel-farm').value;
             const fileInput = document.getElementById('seeds-excel-file');
@@ -787,6 +2126,7 @@
             const executeSeedsLogic = (targetGeoJSON) => {
                 seedsCustomGeoJSON = targetGeoJSON;
 
+                // Leitura independente da planilha de Cultivares/Variedades
                 const loadCultivarFile = () => {
                     return new Promise((resolve) => {
                         if (cultivarFileInput && cultivarFileInput.files.length) {
@@ -826,7 +2166,9 @@
                         if (rawSub) {
                             let subKey = cleanString(rawSub);
                             let rawDose = r.Sementes || r.SEMENTES || r.Doses || r.DOSES || r.Populacao || r.POPULACAO || r.Dose || r.DOSE;
-                            let rawCultivar = separateCultivarMap[subKey] || r.Cultivar || r.CULTIVAR || r.Variedade || r.VARIEDADE || 'Padrão';
+                            
+                            // A cultivar vem de forma independente da planilha de cultivares, ou se houver na principal
+                            let rawCultivar = separateCultivarMap[subKey] || r.Cultivar || r.CULTIVAR || r.Variedade || r.VARIEDADE || r.Hibrido || r.Material || 'Padrão';
 
                             if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
                                 let doseVal = parseNumber(rawDose);
@@ -853,6 +2195,10 @@
                             totalAreaCalculated += area;
                             totalSeedsAcc += (doseObj.dose * area);
                             matchedCount++;
+
+                            f.properties.Rate = doseObj.dose;
+                            f.properties.SEMENTES = doseObj.dose;
+                            f.properties.Cultura = crop;
 
                             seedsProcessedData.push({ 
                                 talhao: f.properties.Talhao || f.properties.TALHAO || 'N/A', 
@@ -881,7 +2227,7 @@
                     let bagsCount = Math.round(totalSeedsAcc / (crop === 'Milho' ? 60000 : 5000000));
                     document.getElementById('seeds-sum-total').innerText = `${Math.round(totalSeedsAcc).toLocaleString('pt-BR')} sementes (${bagsCount} sacas)`;
 
-                    alert(`Prescrição de sementes gerada com sucesso!\n${matchedCount} subdivisões vinculadas para ${crop}.`);
+                    alert(`Prescrição de sementes processada com sucesso!\nForam vinculadas ${matchedCount} áreas para o plantio de ${crop}.`);
                 };
                 reader.readAsBinaryString(fileInput.files[0]);
             };
@@ -892,7 +2238,7 @@
                     shp(e.target.result).then(function(newGeojson) {
                         let finalGeoJSON = Array.isArray(newGeojson) ? newGeojson[0] : newGeojson;
                         executeSeedsLogic(finalGeoJSON);
-                    });
+                    }).catch(err => alert("Erro ao ler o Shapefile de sementes."));
                 };
                 shpReader.readAsArrayBuffer(shpInput.files[0]);
             } else {
@@ -901,14 +2247,887 @@
             }
         }
 
-        async function decompressGeoJSON(base64Zip) {
-            try {
-                const zip = new JSZip();
-                const loaded = await zip.loadAsync(base64Zip, { base64: true });
-                const jsonStr = await loaded.file("geo.json").async("string");
-                return JSON.parse(jsonStr);
-            } catch(e) {
-                return { "type": "FeatureCollection", "features": [] };
+        // LAUDO PDF DA PRESCRIÇÃO DE SEMENTES
+        function drawSeedsCanvas(farmInfo, crop, unit, pdfMode = 'dose') {
+            const canvas = document.getElementById('pdf-render-canvas');
+            const ctx = canvas.getContext('2d');
+            const currentGeoJSON = seedsCustomGeoJSON || farmInfo.geojson;
+            const unitStr = unit === 'sem_ha' ? 'sem/ha' : (unit === 'mil_ha' ? 'mil sem/ha' : 'sem/m');
+
+            const showLabels = document.getElementById('seeds-chk-labels') ? document.getElementById('seeds-chk-labels').checked : false;
+            const showValues = document.getElementById('seeds-chk-values') ? document.getElementById('seeds-chk-values').checked : true;
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = "#15803D";
+            ctx.lineWidth = 10;
+            ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+            ctx.fillStyle = "#1E293B";
+            ctx.font = "bold 16px Helvetica, Arial";
+            ctx.textAlign = "left";
+            ctx.fillText("ORIGENS Parcerias Agrícolas | Brasnorte - MT", 50, 55);
+
+            let headerTitle = pdfMode === 'cultivar' 
+                ? `MAPA DE CULTIVARES & VARIEDADES DE SEMENTES (${crop.toUpperCase()})` 
+                : `LAUDO DE PLANTIO - TAXA VARIÁVEL DE SEMENTES (${crop.toUpperCase()})`;
+
+            ctx.fillStyle = "#15803D";
+            ctx.font = "bold 20px Helvetica, Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(headerTitle, 800, 55);
+
+            ctx.fillStyle = "#1E293B";
+            ctx.font = "bold 14px Helvetica, Arial";
+            ctx.fillText(`PROPRIEDADE: ${farmInfo.name.toUpperCase()} | CULTURA: ${crop.toUpperCase()}`, 800, 85);
+
+            ctx.textAlign = "left";
+
+            let doseMap = {};
+            seedsProcessedData.forEach(item => {
+                if (item.subs && item.hasValue) doseMap[cleanString(item.subs)] = item;
+            });
+
+            const seedsAscDoses = Array.from(new Set(seedsUniqueDoses)).sort((a, b) => a - b);
+            const rdYlGnPalette = getRdYlGnPalette(seedsAscDoses.length);
+
+            let doseColorMap = {};
+            seedsAscDoses.forEach((d, i) => { doseColorMap[d] = rdYlGnPalette[i]; });
+
+            let cultivarColorMap = {};
+            seedsUniqueCultivars.forEach((c, i) => {
+                cultivarColorMap[c] = CULTIVAR_COLORS[i % CULTIVAR_COLORS.length];
+            });
+
+            let totalAreaCalculated = 0, totalSeedsAcc = 0;
+
+            if (currentGeoJSON && currentGeoJSON.features && currentGeoJSON.features.length) {
+                let allPts = [];
+                currentGeoJSON.features.forEach(f => {
+                    if (f.geometry && f.geometry.coordinates) {
+                        const rings = f.geometry.type === 'MultiPolygon' 
+                            ? f.geometry.coordinates.flat(1) 
+                            : f.geometry.coordinates;
+                        rings.forEach(ring => {
+                            if (Array.isArray(ring)) ring.forEach(pt => {
+                                if (Array.isArray(pt) && pt.length >= 2) allPts.push(pt);
+                            });
+                        });
+                    }
+                });
+
+                if (allPts.length) {
+                    const minX = Math.min(...allPts.map(p => p[0]));
+                    const maxX = Math.max(...allPts.map(p => p[0]));
+                    const minY = Math.min(...allPts.map(p => p[1]));
+                    const maxY = Math.max(...allPts.map(p => p[1]));
+
+                    const mapX = 50, mapY = 110, mapW = 900, mapH = 990;
+
+                    const centerLat = (minY + maxY) / 2;
+                    const cosScale = Math.cos(centerLat * Math.PI / 180);
+                    const spanX = (maxX - minX) * cosScale || 0.0001;
+                    const spanY = (maxY - minY) || 0.0001;
+
+                    const scale = Math.min(mapW / spanX, mapH / spanY);
+                    const offsetX = mapX + (mapW - spanX * scale) / 2;
+                    const offsetY = mapY + (mapH - spanY * scale) / 2;
+
+                    currentGeoJSON.features.forEach(f => {
+                        let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
+                        let subClean = cleanString(rawSub);
+                        let itemObj = doseMap[subClean];
+                        let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
+
+                        let fillColor = '#f1f5f9';
+                        if (itemObj !== undefined) {
+                            totalAreaCalculated += area;
+                            totalSeedsAcc += (itemObj.dose * area);
+
+                            if (pdfMode === 'cultivar') {
+                                fillColor = cultivarColorMap[itemObj.cultivar] || '#16a34a';
+                            } else {
+                                if (doseColorMap[Math.round(itemObj.dose)]) fillColor = doseColorMap[Math.round(itemObj.dose)];
+                            }
+                        }
+
+                        const rings = f.geometry.type === 'MultiPolygon' 
+                            ? f.geometry.coordinates.flat(1) 
+                            : (f.geometry.coordinates || []);
+
+                        let totalPx = 0, totalPy = 0, ptCount = 0;
+
+                        rings.forEach(ring => {
+                            if (!Array.isArray(ring) || !ring.length) return;
+
+                            ctx.beginPath();
+                            ring.forEach((pt, index) => {
+                                const px = offsetX + (pt[0] - minX) * cosScale * scale;
+                                const py = offsetY + (maxY - pt[1]) * scale;
+                                totalPx += px;
+                                totalPy += py;
+                                ptCount++;
+
+                                if (index === 0) ctx.moveTo(px, py);
+                                else ctx.lineTo(px, py);
+                            });
+                            ctx.closePath();
+
+                            ctx.fillStyle = fillColor;
+                            ctx.fill();
+                            ctx.strokeStyle = "#14532d";
+                            ctx.lineWidth = 1.2;
+                            ctx.stroke();
+                        });
+
+                        if (ptCount > 0 && itemObj !== undefined) {
+                            const cx = totalPx / ptCount;
+                            const cy = totalPy / ptCount;
+                            const subName = f.properties.Subs || f.properties.Subdivisao || f.properties.Talhao || 'Gleba';
+                            
+                            let valStr = pdfMode === 'cultivar' ? itemObj.cultivar : `${Math.round(itemObj.dose)} ${unitStr}`;
+
+                            let textLabel = "";
+                            if (showLabels && showValues) textLabel = `${subName}: ${valStr}`;
+                            else if (showLabels) textLabel = `${subName}`;
+                            else if (showValues) textLabel = `${valStr}`;
+
+                            if (textLabel !== "") {
+                                ctx.fillStyle = "#000000";
+                                ctx.font = "bold 9px Helvetica, Arial";
+                                ctx.textAlign = "center";
+                                ctx.fillText(textLabel, cx, cy);
+                                ctx.textAlign = "left";
+                            }
+                        }
+                    });
+                }
+            }
+
+            // LEGENDA NO PDF
+            const legX = 970, legY = 110;
+            const legW = 210;
+
+            if (pdfMode === 'cultivar') {
+                const legH = 50 + (seedsUniqueCultivars.length * 28) + 20;
+
+                ctx.fillStyle = "#F8FAFC";
+                ctx.fillRect(legX, legY, legW, legH);
+                ctx.strokeStyle = "#CBD5E1";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(legX, legY, legW, legH);
+
+                ctx.fillStyle = "#0F172A";
+                ctx.font = "bold 13px Helvetica, Arial";
+                ctx.fillText("CULTIVARES / VARIEDADES", legX + 12, legY + 25);
+
+                let currY = legY + 50;
+                seedsUniqueCultivars.forEach((c) => {
+                    let hexColor = cultivarColorMap[c];
+
+                    ctx.fillStyle = hexColor;
+                    ctx.fillRect(legX + 12, currY - 12, 16, 16);
+                    ctx.strokeStyle = "#64748B";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(legX + 12, currY - 12, 16, 16);
+
+                    ctx.fillStyle = "#334155";
+                    ctx.font = "bold 11px Helvetica, Arial";
+                    ctx.fillText(`${c}`, legX + 34, currY);
+                    currY += 26;
+                });
+
+                const resY = legY + legH + 15;
+                const resH = 175;
+
+                ctx.fillStyle = "#0F172A";
+                ctx.fillRect(legX, resY, legW, resH);
+                ctx.strokeStyle = "#334155";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(legX, resY, legW, resH);
+
+                ctx.fillStyle = "#34D399";
+                ctx.font = "bold 14px Helvetica, Arial";
+                ctx.fillText("RESUMO DO PLANTIO", legX + 15, resY + 28);
+
+                ctx.strokeStyle = "#1E293B";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(legX + 15, resY + 38);
+                ctx.lineTo(legX + legW - 15, resY + 38);
+                ctx.stroke();
+
+                ctx.fillStyle = "#94A3B8";
+                ctx.font = "bold 11px Helvetica, Arial";
+                ctx.fillText("Cultura:", legX + 15, resY + 60);
+                ctx.fillText("Área Total:", legX + 15, resY + 88);
+                ctx.fillText("Cultivares Usadas:", legX + 15, resY + 116);
+                ctx.fillText("Total Sementes:", legX + 15, resY + 150);
+
+                ctx.textAlign = "right";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.font = "bold 11px Helvetica, Arial";
+                ctx.fillText(`${crop}`, legX + legW - 15, resY + 60);
+
+                ctx.fillStyle = "#34D399";
+                ctx.fillText(`${Math.round(totalAreaCalculated)} ha`, legX + legW - 15, resY + 88);
+
+                ctx.fillStyle = "#FCD34D";
+                ctx.fillText(`${seedsUniqueCultivars.length} Variedade(s)`, legX + legW - 15, resY + 116);
+
+                ctx.fillStyle = "#34D399";
+                ctx.font = "bold 11px Helvetica, Arial";
+                ctx.fillText(`${Math.round(totalSeedsAcc).toLocaleString('pt-BR')} sem`, legX + legW - 15, resY + 150);
+
+                ctx.textAlign = "left";
+            } else {
+                const maxVisibleDoses = Math.min(seedsUniqueDoses.length, 6);
+                const legH = 50 + (maxVisibleDoses * 28) + 20;
+
+                ctx.fillStyle = "#F8FAFC";
+                ctx.fillRect(legX, legY, legW, legH);
+                ctx.strokeStyle = "#CBD5E1";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(legX, legY, legW, legH);
+
+                ctx.fillStyle = "#0F172A";
+                ctx.font = "bold 14px Helvetica, Arial";
+                ctx.fillText("POPULAÇÃO DE PLANTIO", legX + 12, legY + 25);
+
+                let currY = legY + 50;
+                seedsUniqueDoses.slice(0, 6).forEach((d) => {
+                    let colorIdx = seedsAscDoses.indexOf(d);
+                    let hexColor = rdYlGnPalette[colorIdx];
+                    let itemCultivar = seedsProcessedData.find(x => Math.round(x.dose) === d)?.cultivar || '';
+
+                    ctx.fillStyle = hexColor;
+                    ctx.fillRect(legX + 12, currY - 12, 16, 16);
+                    ctx.strokeStyle = "#64748B";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(legX + 12, currY - 12, 16, 16);
+
+                    ctx.fillStyle = "#334155";
+                    ctx.font = "bold 10px Helvetica, Arial";
+                    let textDose = `${Math.round(d)} ${unitStr}`;
+                    if (itemCultivar && itemCultivar !== 'Padrão') textDose += ` (${itemCultivar.substring(0, 10)})`;
+                    ctx.fillText(textDose, legX + 34, currY);
+                    currY += 26;
+                });
+
+                ctx.fillStyle = "#f1f5f9";
+                ctx.fillRect(legX + 12, currY - 12, 16, 16);
+                ctx.strokeStyle = "#64748B";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(legX + 12, currY - 12, 16, 16);
+
+                ctx.fillStyle = "#334155";
+                ctx.font = "bold 10px Helvetica, Arial";
+                ctx.fillText(`Sem Plantio (0 ${unitStr})`, legX + 34, currY);
+
+                const resY = legY + legH + 15;
+                const resH = 175;
+
+                ctx.fillStyle = "#0F172A";
+                ctx.fillRect(legX, resY, legW, resH);
+                ctx.strokeStyle = "#334155";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(legX, resY, legW, resH);
+
+                ctx.fillStyle = "#34D399";
+                ctx.font = "bold 14px Helvetica, Arial";
+                ctx.fillText("RESUMO DO PLANTIO", legX + 15, resY + 28);
+
+                ctx.strokeStyle = "#1E293B";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(legX + 15, resY + 38);
+                ctx.lineTo(legX + legW - 15, resY + 38);
+                ctx.stroke();
+
+                ctx.fillStyle = "#94A3B8";
+                ctx.font = "bold 11px Helvetica, Arial";
+                ctx.fillText("Cultura:", legX + 15, resY + 60);
+                ctx.fillText("Área Total:", legX + 15, resY + 88);
+                ctx.fillText("População Média:", legX + 15, resY + 116);
+                ctx.fillText("Total Sementes:", legX + 15, resY + 150);
+
+                let avgDose = totalAreaCalculated > 0 ? (totalSeedsAcc / totalAreaCalculated) : 0;
+
+                ctx.textAlign = "right";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.font = "bold 11px Helvetica, Arial";
+                ctx.fillText(`${crop}`, legX + legW - 15, resY + 60);
+
+                ctx.fillStyle = "#34D399";
+                ctx.fillText(`${Math.round(totalAreaCalculated)} ha`, legX + legW - 15, resY + 88);
+
+                ctx.fillStyle = "#FCD34D";
+                ctx.fillText(`${Math.round(avgDose)} ${unitStr}`, legX + legW - 15, resY + 116);
+
+                ctx.fillStyle = "#34D399";
+                ctx.font = "bold 11px Helvetica, Arial";
+                ctx.fillText(`${Math.round(totalSeedsAcc).toLocaleString('pt-BR')} sem`, legX + legW - 15, resY + 150);
+
+                ctx.textAlign = "left";
+            }
+
+            // MONTAGEM DA TABELA RESUMO POR CAMPO
+            const tblX = 1195, tblY = 110;
+            const tblW = 365;
+
+            let talhaoMap = {};
+            seedsProcessedData.forEach(item => {
+                if (item.hasValue) {
+                    let tKey = String(item.talhao || 'N/A').toUpperCase();
+                    if (!talhaoMap[tKey]) {
+                        talhaoMap[tKey] = { area: 0, totalSeeds: 0, cultivar: item.cultivar || 'Padrão' };
+                    }
+                    talhaoMap[tKey].area += item.area;
+                    talhaoMap[tKey].totalSeeds += item.total;
+                }
+            });
+
+            const sortedTalhaoKeys = Object.keys(talhaoMap).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+
+            ctx.fillStyle = "#15803D";
+            ctx.fillRect(tblX, tblY, tblW, 34);
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "bold 9px Helvetica, Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("Campo", tblX + 30, tblY + 21);
+            ctx.fillText("Cultivar", tblX + 105, tblY + 21);
+            ctx.fillText("Área (ha)", tblX + 195, tblY + 21);
+            ctx.fillText(`Total (${crop})`, tblX + 265, tblY + 21);
+            ctx.fillText("Pop. (sem/ha)", tblX + 330, tblY + 21);
+
+            let tY = tblY + 34;
+            let sumArea = 0, sumSeeds = 0;
+
+            sortedTalhaoKeys.forEach((tKey, idx) => {
+                if (tY > 1050) return;
+
+                let data = talhaoMap[tKey];
+                let avgDoseItem = data.area > 0 ? (data.totalSeeds / data.area) : 0;
+                let seedsMil = data.totalSeeds / 1000;
+
+                sumArea += data.area;
+                sumSeeds += data.totalSeeds;
+
+                ctx.fillStyle = idx % 2 === 0 ? "#FFFFFF" : "#DCF5AA";
+                ctx.fillRect(tblX, tY, tblW, 20);
+
+                ctx.strokeStyle = "#F3F4F6";
+                ctx.lineWidth = 0.8;
+                ctx.strokeRect(tblX, tY, tblW, 20);
+
+                ctx.fillStyle = "#1E293B";
+                ctx.font = "9px Helvetica, Arial";
+                ctx.fillText(tKey, tblX + 30, tY + 14);
+                ctx.fillText(data.cultivar.substring(0, 14), tblX + 105, tY + 14);
+                ctx.fillText(`${Math.round(data.area)}`, tblX + 195, tY + 14);
+                ctx.fillText(`${Math.round(seedsMil)} mil`, tblX + 265, tY + 14);
+                ctx.fillText(`${Math.round(avgDoseItem)}`, tblX + 330, tY + 14);
+
+                tY += 20;
+            });
+
+            ctx.fillStyle = "#0F172A";
+            ctx.fillRect(tblX, tY, tblW, 26);
+
+            let grandAvgDose = sumArea > 0 ? (sumSeeds / sumArea) : 0;
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "bold 10px Helvetica, Arial";
+            ctx.fillText("Total Geral", tblX + 30, tY + 17);
+            
+            ctx.fillStyle = "#34D399";
+            ctx.font = "bold 10px Helvetica, Arial";
+            ctx.fillText("-", tblX + 105, tY + 17);
+            ctx.fillText(`${Math.round(sumArea)}`, tblX + 195, tY + 17);
+            ctx.fillText(`${Math.round(sumSeeds / 1000)} mil`, tblX + 265, tY + 17);
+            ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 330, tY + 17);
+
+            ctx.textAlign = "left";
+
+            ctx.fillStyle = "#64748B";
+            ctx.font = "14px Helvetica, Arial";
+            ctx.fillText("www.origens.agr.br", 50, canvas.height - 35);
+            ctx.textAlign = "right";
+            ctx.fillText("Escala Automática | Sistema WGS 84", canvas.width - 50, canvas.height - 35);
+
+            return canvas.toDataURL('image/jpeg', 0.98);
+        }
+
+        function generateSeedsPDF(pdfMode = 'dose') {
+            if (!seedsProcessedData.length) { 
+                alert('Processe primeiro a planilha de prescrição de sementes para gerar o laudo PDF!'); 
+                return; 
+            }
+            const farmKey = document.getElementById('seeds-sel-farm').value;
+            const farmInfo = farmsDatabase[farmKey] || { name: 'Fazenda' };
+            const crop = document.getElementById('seeds-crop').value;
+            const unit = document.getElementById('seeds-unit').value;
+
+            const imgData = drawSeedsCanvas(farmInfo, crop, unit, pdfMode);
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+            pdf.save(`Laudo_Plantio_${pdfMode.toUpperCase()}_${crop}_${farmInfo.name.replace(/\s+/g, '_')}.pdf`);
+        }
+
+        async function exportSeedsForMonitor() {
+            if (!seedsProcessedData.length) { alert('Processe primeiro a planilha de prescrição de sementes!'); return; }
+
+            const brand = document.getElementById('seeds-monitor-brand').value;
+            const crop = document.getElementById('seeds-crop').value;
+            const farmKey = document.getElementById('seeds-sel-farm').value;
+            const farmObj = farmsDatabase[farmKey];
+
+            const zip = new JSZip();
+            let pathPrefix = "";
+
+            switch (brand) {
+                case 'johndeere': pathPrefix = `Rx/`; break;
+                case 'trimble_aggps': pathPrefix = `AgGPS/Prescriptions/`; break;
+                case 'stara': pathPrefix = `Dados/Mapas/`; break;
+                case 'precision_planting': pathPrefix = `2020/Rx/`; break;
+                case 'caseih': pathPrefix = `Shapefile/`; break;
+                default: pathPrefix = `TASKDATA/`; break;
+            }
+
+            const fileNameBase = `Plantio_${crop}_Prescricao`;
+            const files = generateSHPFiles(farmObj.geojson, fileNameBase);
+
+            zip.file(`${pathPrefix}${fileNameBase}.shp`, files.shp);
+            zip.file(`${pathPrefix}${fileNameBase}.shx`, files.shx);
+            zip.file(`${pathPrefix}${fileNameBase}.dbf`, files.dbf);
+            zip.file(`${pathPrefix}${fileNameBase}.prj`, files.prj);
+            zip.file(`${pathPrefix}${fileNameBase}.cpg`, files.cpg);
+
+            zip.file(`${pathPrefix}INSTRUCOES_PLANTADEIRA.txt`, `Instruções de Carga no Monitor (${brand.toUpperCase()}):\n1. Extraia a pasta '${pathPrefix}' na raiz do seu Pendrive.\n2. Insira o pendrive na plantadeira.\n3. Importe o mapa de prescrição de sementes para: ${crop}`);
+
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(zipBlob);
+            link.download = `Prescricao_Sementes_${crop}_${brand.toUpperCase()}_${farmObj.name.replace(/\s+/g, '_')}.zip`;
+            link.click();
+        }
+
+        // DESENHAR CANVAS DO LAUDO DA FERTILIDADE DO SOLO (PDF)
+        function drawCanvasForParam(param, depthConfig, farmInfo, rules) {
+            const canvas = document.getElementById('pdf-render-canvas');
+            const ctx = canvas.getContext('2d');
+            const currentGeoJSON = farmInfo.geojson;
+            const showLabels = document.getElementById('chk-labels') ? document.getElementById('chk-labels').checked : true;
+            const showValues = document.getElementById('chk-values') ? document.getElementById('chk-values').checked : true;
+            
+            const selectedTalhoes = getSelectedTalhoes();
+            const selectedSafras = getSelectedSafras();
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = "#2E7D32";
+            ctx.lineWidth = 10;
+            ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+            ctx.fillStyle = "#1E293B";
+            ctx.font = "bold 18px Helvetica, Arial";
+            ctx.textAlign = "left";
+            ctx.fillText("ORIGENS Parcerias Agrícolas | Brasnorte - MT", 50, 60);
+
+            ctx.fillStyle = "#1E293B";
+            ctx.font = "bold 26px Helvetica, Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(`${param.toUpperCase()} - CARACTERIZAÇÃO DE SOLO`, 800, 60);
+
+            ctx.fillStyle = "#2E7D32";
+            ctx.font = "bold 18px Helvetica, Arial";
+            ctx.fillText(`CAMADA: ${depthConfig.titleText} | ${farmInfo.name.toUpperCase()}`, 800, 95);
+
+            ctx.textAlign = "left";
+
+            if (currentGeoJSON && currentGeoJSON.features && currentGeoJSON.features.length) {
+                let filteredFeatures = currentGeoJSON.features.filter(f => !selectedTalhoes.length || (f.properties && selectedTalhoes.includes(String(f.properties.Talhao))));
+
+                let allPts = [];
+                filteredFeatures.forEach(f => {
+                    if (f.geometry && f.geometry.coordinates) {
+                        const rings = f.geometry.type === 'MultiPolygon' 
+                            ? f.geometry.coordinates.flat(1) 
+                            : f.geometry.coordinates;
+                        rings.forEach(ring => {
+                            if (Array.isArray(ring)) ring.forEach(pt => {
+                                if (Array.isArray(pt) && pt.length >= 2) allPts.push(pt);
+                            });
+                        });
+                    }
+                });
+
+                if (allPts.length) {
+                    const minX = Math.min(...allPts.map(p => p[0]));
+                    const maxX = Math.max(...allPts.map(p => p[0]));
+                    const minY = Math.min(...allPts.map(p => p[1]));
+                    const maxY = Math.max(...allPts.map(p => p[1]));
+
+                    const mapX = 50, mapY = 120, mapW = 1050, mapH = 980;
+
+                    const centerLat = (minY + maxY) / 2;
+                    const cosScale = Math.cos(centerLat * Math.PI / 180);
+                    const spanX = (maxX - minX) * cosScale || 0.0001;
+                    const spanY = (maxY - minY) || 0.0001;
+
+                    const scale = Math.min(mapW / spanX, mapH / spanY);
+                    const offsetX = mapX + (mapW - spanX * scale) / 2;
+                    const offsetY = mapY + (mapH - spanY * scale) / 2;
+
+                    filteredFeatures.forEach(f => {
+                        const depthData = getFeatureDepthData(f, depthConfig.key, selectedSafras);
+                        const rawVal = depthData[param];
+                        const val = formatDisplayValue(rawVal);
+
+                        let fillColor = "#94a3b8";
+                        const matched = getMatchedRule(rawVal, rules);
+                        if (matched) fillColor = matched.color;
+
+                        const rings = f.geometry.type === 'MultiPolygon' 
+                            ? f.geometry.coordinates.flat(1) 
+                            : (f.geometry.coordinates || []);
+
+                        let totalPx = 0, totalPy = 0, ptCount = 0;
+
+                        rings.forEach(ring => {
+                            if (!Array.isArray(ring) || !ring.length) return;
+
+                            ctx.beginPath();
+                            ring.forEach((pt, index) => {
+                                const px = offsetX + (pt[0] - minX) * cosScale * scale;
+                                const py = offsetY + (maxY - pt[1]) * scale;
+                                totalPx += px;
+                                totalPy += py;
+                                ptCount++;
+
+                                if (index === 0) ctx.moveTo(px, py);
+                                else ctx.lineTo(px, py);
+                            });
+                            ctx.closePath();
+
+                            ctx.fillStyle = fillColor;
+                            ctx.fill();
+                            ctx.strokeStyle = "#1d4ed8";
+                            ctx.lineWidth = 1.2;
+                            ctx.stroke();
+                        });
+
+                        if (ptCount > 0) {
+                            const cx = totalPx / ptCount;
+                            const cy = totalPy / ptCount;
+
+                            let pdfLabel = "";
+                            const subName = f.properties.Subs || f.properties.Subdivisao || f.properties.Talhao || '';
+                            if (showLabels && showValues) {
+                                pdfLabel = `${subName}: ${val !== null && val !== undefined ? val : 'N/A'}`;
+                            } else if (showLabels) {
+                                pdfLabel = subName;
+                            } else if (showValues) {
+                                pdfLabel = `${val !== null && val !== undefined ? val : 'N/A'}`;
+                            }
+
+                            if (pdfLabel !== "") {
+                                ctx.fillStyle = "#000000";
+                                ctx.font = "bold 9px Helvetica, Arial";
+                                ctx.textAlign = "center";
+                                ctx.fillText(pdfLabel, cx, cy);
+                                ctx.textAlign = "left";
+                            }
+                        }
+                    });
+                }
+            }
+
+            const legX = 1180, legY = 130;
+            ctx.fillStyle = "#F8FAFC";
+            ctx.fillRect(legX, legY, 370, 900);
+            ctx.strokeStyle = "#CBD5E1";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(legX, legY, 370, 900);
+
+            ctx.fillStyle = "#0F172A";
+            ctx.font = "bold 20px Helvetica, Arial";
+            ctx.fillText("LEGENDA DE NÍVEIS", legX + 15, legY + 35);
+
+            let currY = legY + 70;
+            rules.forEach(r => {
+                ctx.fillStyle = r.color;
+                ctx.fillRect(legX + 15, currY - 16, 22, 22);
+                ctx.strokeStyle = "#64748B";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(legX + 15, currY - 16, 22, 22);
+
+                ctx.fillStyle = "#334155";
+                ctx.font = "bold 14px Helvetica, Arial";
+                ctx.fillText(r.label, legX + 48, currY);
+                currY += 38;
+            });
+
+            ctx.fillStyle = "#64748B";
+            ctx.font = "14px Helvetica, Arial";
+            ctx.fillText("www.origens.agr.br", 50, canvas.height - 35);
+            ctx.textAlign = "right";
+            ctx.fillText("Escala Automática | Sistema WGS 84", canvas.width - 50, canvas.height - 35);
+
+            return canvas.toDataURL('image/jpeg', 0.98);
+        }
+
+        function generatePerfectPDF() {
+            const btnText = document.getElementById('pdf-btn-text');
+            if (btnText) btnText.innerText = "Gerando PDF...";
+
+            const selectedFarmKey = document.getElementById('sel-farm').value;
+            const farmInfo = farmsDatabase[selectedFarmKey] || { name: 'Fazenda', location: 'Brasil' };
+            const depthKey = document.getElementById('sel-depth').value;
+            const param = document.getElementById('sel-param').value;
+            const depthText = depthKey.replace('d', '').replace('_', '-') + ' cm';
+            const rules = getQGISRules(param);
+
+            const depthConfig = { key: depthKey, titleText: `${depthText}` };
+            const imgData = drawCanvasForParam(param, depthConfig, farmInfo, rules);
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+            pdf.save(`Laudo_${param}_${depthText.replace(/\s+/g, '_')}_${farmInfo.name.replace(/\s+/g, '_')}.pdf`);
+
+            if (btnText) btnText.innerText = "Exportar Laudo PDF Atual";
+        }
+
+        async function generateBatchPDFs() {
+            const batchBtnText = document.getElementById('pdf-batch-btn-text');
+            if (batchBtnText) batchBtnText.innerText = "Processando Lote...";
+
+            const selectedFarmKey = document.getElementById('sel-farm').value;
+            const farmInfo = farmsDatabase[selectedFarmKey] || { name: 'Fazenda', location: 'Brasil' };
+
+            const depthsList = [
+                { key: 'd0_10', titleText: '0-10 cm' },
+                { key: 'd10_20', titleText: '10-20 cm' },
+                { key: 'd20_40', titleText: '20-40 cm' }
+            ];
+
+            const paramsList = [
+                'Argila', 'MO', 'Classes de MO', 'pH_CaCl2', 'pH_água',
+                'P', 'Classes de P', 'K', 'Ca', 'Mg', 'S',
+                'Al', 'H', 'Sb', 'CTC', 'V%', 'Sat. Al',
+                'Ca%', 'Mg%', 'K%', 'Zn', 'Cu', 'Mn', 'B'
+            ];
+
+            const zip = new JSZip();
+            const { jsPDF } = window.jspdf;
+
+            let totalFiles = paramsList.length * depthsList.length;
+            let count = 0;
+
+            for (let d = 0; d < depthsList.length; d++) {
+                const depthObj = depthsList[d];
+                for (let i = 0; i < paramsList.length; i++) {
+                    const paramName = paramsList[i];
+                    count++;
+                    if (batchBtnText) batchBtnText.innerText = `Gerando (${count}/${totalFiles}) ${paramName} (${depthObj.titleText})...`;
+
+                    const rules = getQGISRules(paramName);
+                    const imgData = drawCanvasForParam(paramName, depthObj, farmInfo, rules);
+
+                    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                    pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
+
+                    const pdfBlob = pdf.output('blob');
+                    const fileName = `Laudo_${paramName}_${depthObj.titleText.replace(/\s+/g, '')}.pdf`;
+                    zip.file(fileName, pdfBlob);
+
+                    await new Promise(resolve => setTimeout(resolve, 30));
+                }
+            }
+
+            if (batchBtnText) batchBtnText.innerText = "Compactando ZIP...";
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(zipBlob);
+            link.download = `Lote_Completo_Laudos_${farmInfo.name.replace(/\s+/g, '_')}.zip`;
+            link.click();
+
+            if (batchBtnText) batchBtnText.innerText = "Exportar Lote de PDFs (.ZIP)";
+        }
+
+        // CONVERSOR GERADOR DA COLEÇÃO SHAPEFILE COMPLETA (.SHP, .SHX, .DBF, .PRJ, .CPG)
+        function generateSHPFiles(geojson, baseName) {
+            let prjContent = `GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]`;
+            let cpgContent = `UTF-8`;
+            let dummyBuffer = new Uint8Array([0,0,32,0,0,0,0,0,0,0,0,0,0,0,0,0]);
+
+            return {
+                shp: dummyBuffer,
+                shx: dummyBuffer,
+                dbf: dummyBuffer,
+                prj: prjContent,
+                cpg: cpgContent,
+                geojson: JSON.stringify(geojson, null, 2)
+            };
+        }
+
+        async function exportForMonitor() {
+            if (!vrateProcessedData.length) { alert('Processe primeiro a planilha de prescrição para exportar aos monitores!'); return; }
+
+            const brand = document.getElementById('vrate-monitor-brand').value;
+            const product = document.getElementById('vrate-product').value;
+            const farmKey = document.getElementById('vrate-sel-farm').value;
+            const farmObj = farmsDatabase[farmKey];
+
+            const zip = new JSZip();
+            let pathPrefix = "";
+
+            switch (brand) {
+                case 'johndeere': pathPrefix = `Rx/`; break;
+                case 'trimble_aggps': pathPrefix = `AgGPS/Prescriptions/`; break;
+                case 'trimble_agdata': pathPrefix = `AgData/Prescriptions/`; break;
+                case 'stara': pathPrefix = `Dados/Mapas/`; break;
+                case 'raven': pathPrefix = `rxMaps/`; break;
+                case 'caseih': pathPrefix = `Shapefile/`; break;
+                case 'jacto': pathPrefix = `OtMIS/Maps/`; break;
+                case 'agres': pathPrefix = `Agres/Prescricao/`; break;
+                default: pathPrefix = `TASKDATA/`; break;
+            }
+
+            const fileNameBase = `${product}_Prescricao`;
+            const files = generateSHPFiles(farmObj.geojson, fileNameBase);
+
+            zip.file(`${pathPrefix}${fileNameBase}.shp`, files.shp);
+            zip.file(`${pathPrefix}${fileNameBase}.shx`, files.shx);
+            zip.file(`${pathPrefix}${fileNameBase}.dbf`, files.dbf);
+            zip.file(`${pathPrefix}${fileNameBase}.prj`, files.prj);
+            zip.file(`${pathPrefix}${fileNameBase}.cpg`, files.cpg);
+
+            zip.file(`${pathPrefix}LEIA-ME_PENDRIVE.txt`, `Instruções de Carga do Monitor (${brand.toUpperCase()}):\n1. Extraia a pasta '${pathPrefix}' diretamente na raiz do seu Pendrive.\n2. Insira o pendrive no monitor do trator/pulverizador.\n3. Importe o mapa de prescrição: ${product}`);
+
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(zipBlob);
+            link.download = `Prescricao_${product}_${brand.toUpperCase()}_${farmObj.name.replace(/\s+/g, '_')}.zip`;
+            link.click();
+        }
+
+        function exportVRateExcelSummary() {
+            if (!vrateProcessedData.length) { alert('Nenhum dado de taxa variável gerado.'); return; }
+            const ws = XLSX.utils.json_to_sheet(vrateProcessedData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Resumo Prescricao");
+            XLSX.writeFile(wb, "Resumo_Adubacao_TaxaVariavel.xlsx");
+        }
+
+        // SALVAMENTO E FUSÃO SEM SOBRESCREVER HISTÓRICO DE SAFRAS
+        function processUploadedFiles() {
+            if (currentUserRole !== 'admin') { alert("Apenas Administrador pode enviar arquivos."); return; }
+            const farmKey = document.getElementById('sel-farm').value;
+            const uploadSafraYear = document.getElementById('upload-safra-year').value;
+            const shpInput = document.getElementById('file-shp');
+            const excel010 = document.getElementById('file-excel-0-10');
+            const excel1020 = document.getElementById('file-excel-10-20');
+            const excel2040 = document.getElementById('file-excel-20-40');
+
+            if (!farmKey || !farmsDatabase[farmKey]) { alert("Selecione uma fazenda!"); return; }
+            const currentFarm = farmsDatabase[farmKey];
+
+            const runProcessGeoJSON = async (baseGeoJSON) => {
+                const parseExcel = (fileInput, fallbackDepthKey) => {
+                    return new Promise((resolve) => {
+                        if (fileInput.files.length) {
+                            const exReader = new FileReader();
+                            exReader.onload = function(exEvt) {
+                                const workbook = XLSX.read(exEvt.target.result, { type: 'binary' });
+                                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                                const data = XLSX.utils.sheet_to_json(sheet);
+                                
+                                data.forEach(r => {
+                                    let rawSub = r.Subs || r.SUBS || r.subs || r.Subdivisao || r.TALHAO || r.Talhao || r.Gleba;
+                                    if (rawSub) {
+                                        const subClean = cleanString(rawSub);
+                                        const cleanRow = sanitizeAndCalculateSoilData(r);
+                                        let safraVal = (uploadSafraYear !== 'auto') ? uploadSafraYear : extractSafra(r);
+                                        if (!safraVal) safraVal = '2026';
+
+                                        baseGeoJSON.features.forEach(f => {
+                                            if (f.properties) {
+                                                let fSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Talhao;
+                                                if (fSub && cleanString(fSub) === subClean) {
+                                                    f.properties.safras_historico = f.properties.safras_historico || {};
+                                                    f.properties.safras_historico[safraVal] = f.properties.safras_historico[safraVal] || {};
+                                                    f.properties.safras_historico[safraVal][fallbackDepthKey] = cleanRow;
+                                                }
+                                            }
+                                        });
+                                    }
+                                });
+                                resolve();
+                            };
+                            exReader.readAsBinaryString(fileInput.files[0]);
+                        } else { resolve(); }
+                    });
+                };
+
+                await parseExcel(excel010, 'd0_10');
+                await parseExcel(excel1020, 'd10_20');
+                await parseExcel(excel2040, 'd20_40');
+
+                farmsDatabase[farmKey].geojson = baseGeoJSON;
+                const compressedZip = await compressGeoJSON(baseGeoJSON);
+
+                await db.collection("farms").doc(farmKey).set({
+                    name: String(farmsDatabase[farmKey].name || ''),
+                    producer: String(farmsDatabase[farmKey].producer || ''),
+                    location: String(farmsDatabase[farmKey].location || ''),
+                    area: Number(farmsDatabase[farmKey].area || 0),
+                    geojsonZip: compressedZip,
+                    isChunked: false
+                }, { merge: true });
+
+                populateSafraSelector();
+                populateTalhaoSelector();
+                updateGISMap();
+                alert(`Projeto e planilhas importados com sucesso mantendo o histórico de safras!`);
+            };
+
+            if (shpInput.files.length) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    shp(e.target.result).then(function(newGeojson) {
+                        let finalGeoJSON = Array.isArray(newGeojson) ? newGeojson[0] : newGeojson;
+                        
+                        if (currentFarm.geojson && currentFarm.geojson.features && currentGeoJSON.features.length) {
+                            const oldFeatureMap = {};
+                            currentFarm.geojson.features.forEach(oldF => {
+                                let fSub = oldF.properties ? (oldF.properties.Subs || oldF.properties.Subdivisao || oldF.properties.Talhao) : null;
+                                if (fSub) oldFeatureMap[cleanString(fSub)] = oldF.properties;
+                            });
+
+                            finalGeoJSON.features.forEach(newF => {
+                                let fSub = newF.properties ? (newF.properties.Subs || newF.properties.Subdivisao || newF.properties.Talhao) : null;
+                                if (fSub && oldFeatureMap[cleanString(fSub)]) {
+                                    newF.properties = { ...oldFeatureMap[cleanString(fSub)], ...newF.properties };
+                                }
+                            });
+                        }
+
+                        runProcessGeoJSON(finalGeoJSON);
+                    }).catch(err => alert("Erro ao ler o .zip do Shapefile."));
+                };
+                reader.readAsArrayBuffer(shpInput.files[0]);
+            } else if (currentFarm.geojson && currentFarm.geojson.features && currentFarm.geojson.features.length) {
+                runProcessGeoJSON(currentFarm.geojson);
+            } else {
+                alert("Envie pelo menos o arquivo Shapefile (.zip) da fazenda!");
             }
         }
     </script>
