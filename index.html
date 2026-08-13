@@ -702,6 +702,7 @@
             return r;
         }
 
+        // BUSCA ROBUSTA DE DADOS NA SAFRA SELECIONADA
         function getFeatureDepthData(feature, depthKey, selectedSafras) {
             if (!feature || !feature.properties) return {};
             const props = feature.properties;
@@ -1567,7 +1568,7 @@
         }
 
         // =========================================================================
-        // LÓGICA DO MÓDULO DE TAXA VARIÁVEL (EXIBIÇÃO COM COMPOSIÇÃO RdYlGn)
+        // LÓGICA DO MÓDULO DE TAXA VARIÁVEL (PROCESSAMENTO COM DIFERENCIAÇÃO DE CÉLULAS VAZIAS E ZERO)
         // =========================================================================
         function initVRateMap() {
             if (!vrateMap) {
@@ -1623,16 +1624,21 @@
                 style: f => {
                     let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
                     let subClean = cleanString(rawSub);
-                    let dose = vrateDoseMap[subClean] !== undefined ? vrateDoseMap[subClean] : 0;
+                    let doseObj = vrateDoseMap[subClean];
 
                     let color = '#f1f5f9';
-                    if (dose > 0 && doseColorMap[dose]) {
-                        color = doseColorMap[dose];
+                    let fillOpacity = 0.2;
+
+                    if (doseObj && doseObj.hasValue) {
+                        fillOpacity = 0.85;
+                        if (doseObj.dose > 0 && doseColorMap[doseObj.dose]) {
+                            color = doseColorMap[doseObj.dose];
+                        }
                     }
 
                     return { 
                         fillColor: color, 
-                        fillOpacity: dose > 0 ? 0.85 : 0.2, 
+                        fillOpacity: fillOpacity, 
                         color: showBoundary ? '#1e3a8a' : 'transparent', 
                         weight: showBoundary ? 1.5 : 0 
                     };
@@ -1640,22 +1646,23 @@
                 onEachFeature: (f, layer) => {
                     let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
                     let subClean = cleanString(rawSub);
-                    let dose = vrateDoseMap[subClean] !== undefined ? vrateDoseMap[subClean] : 0;
+                    let doseObj = vrateDoseMap[subClean];
+                    let dose = (doseObj && doseObj.hasValue) ? doseObj.dose : 0;
                     let subName = f.properties.Subs || f.properties.Subdivisao || 'Subdivisão';
 
                     layer.bindPopup(`
                         <div class="p-1">
                             <b class="text-sm text-slate-900 block border-b pb-1">${subName} (Talhão ${f.properties.Talhao || 'N/A'})</b>
                             <span class="text-xs text-slate-600 block mt-1">Área: <b>${format1Decimal(f.properties.Area)} ha</b></span>
-                            <span class="text-xs text-slate-800 block">Dose ${product}: <b class="text-amber-600 font-extrabold">${dose} ${unitStr}</b></span>
+                            <span class="text-xs text-slate-800 block">Dose ${product}: <b class="text-amber-600 font-extrabold">${(doseObj && doseObj.hasValue) ? dose + ' ' + unitStr : 'Não Informada'}</b></span>
                             <span class="text-xs text-slate-800 block">Total Insumo: <b class="text-emerald-600 font-extrabold">${format1Decimal(dose * parseFloat(f.properties.Area || 0))} ${unit === 'kg_ha' ? 'kg' : 't'}</b></span>
                         </div>
                     `);
 
                     let textLabel = "";
-                    if (showLabels && showValues) textLabel = `${subName}: ${dose} ${unitStr}`;
+                    if (showLabels && showValues) textLabel = `${subName}: ${(doseObj && doseObj.hasValue) ? dose + ' ' + unitStr : ''}`;
                     else if (showLabels) textLabel = `${subName}`;
-                    else if (showValues && dose > 0) textLabel = `${dose} ${unitStr}`;
+                    else if (showValues && doseObj && doseObj.hasValue) textLabel = `${dose} ${unitStr}`;
 
                     if (textLabel !== "") {
                         layer.bindTooltip(textLabel, { 
@@ -1696,55 +1703,61 @@
                             let subKey = cleanString(rawSub);
                             let rawDose = r.Doses !== undefined ? r.Doses : (r.DOSES !== undefined ? r.DOSES : (r.Dose !== undefined ? r.Dose : (r.DOSE !== undefined ? r.DOSE : (r.Recomendacao || r.Taxa))));
                             
-                            if (rawDose !== undefined && rawDose !== null && rawDose !== '') {
+                            // DISTINÇÃO ESTRITA ENTRE CÉLULA NULA/VAZIA E CÉLULA COM ZERO
+                            if (rawDose !== undefined && rawDose !== null && String(rawDose).trim() !== '') {
                                 let doseVal = parseFloat(String(rawDose).replace(',', '.'));
-                                if (!isNaN(doseVal) && doseVal > 0) {
-                                    vrateDoseMap[subKey] = doseVal;
+                                if (!isNaN(doseVal)) {
+                                    vrateDoseMap[subKey] = { dose: doseVal, hasValue: true };
                                 }
+                            } else {
+                                vrateDoseMap[subKey] = { dose: 0, hasValue: false };
                             }
                         }
                     });
 
-                    let totalArea = 0, totalProduct = 0, matchedCount = 0;
+                    let totalAreaCalculated = 0, totalProductAcc = 0, matchedCount = 0;
                     vrateProcessedData = [];
 
                     vrateCustomGeoJSON.features.forEach(f => {
                         let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
                         let subClean = cleanString(rawSub);
-                        let dose = vrateDoseMap[subClean] !== undefined ? vrateDoseMap[subClean] : 0;
+                        let doseObj = vrateDoseMap[subClean];
+
                         let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
 
-                        if (dose > 0) {
-                            totalArea += area;
-                            totalProduct += (dose * area);
+                        // Contabiliza área SOMENTE se houver valor preenchido no Excel (incluindo o zero 0)
+                        if (doseObj && doseObj.hasValue) {
+                            totalAreaCalculated += area;
+                            totalProductAcc += (doseObj.dose * area);
                             matchedCount++;
+
+                            f.properties.Rate = doseObj.dose;
+                            f.properties.DOSE = doseObj.dose;
+                            f.properties.Produto = product;
+
+                            vrateProcessedData.push({ 
+                                talhao: f.properties.Talhao || f.properties.TALHAO || 'N/A', 
+                                subs: f.properties.Subs || f.properties.Subdivisao || 'Gleba', 
+                                area: area, 
+                                dose: doseObj.dose, 
+                                total: (doseObj.dose * area),
+                                hasValue: true
+                            });
                         }
-
-                        f.properties.Rate = dose;
-                        f.properties.DOSE = dose;
-                        f.properties.Produto = product;
-
-                        vrateProcessedData.push({ 
-                            talhao: f.properties.Talhao || f.properties.TALHAO || 'N/A', 
-                            subs: f.properties.Subs || f.properties.Subdivisao || 'Gleba', 
-                            area: area, 
-                            dose: dose, 
-                            total: (dose * area) 
-                        });
                     });
 
-                    vrateUniqueDoses = Array.from(new Set(vrateProcessedData.map(d => d.dose))).filter(d => d > 0).sort((a,b) => b - a);
+                    vrateUniqueDoses = Array.from(new Set(vrateProcessedData.map(d => d.dose))).sort((a,b) => b - a);
 
                     vrateUpdateMap();
 
                     document.getElementById('vrate-summary-box').classList.remove('hidden');
                     document.getElementById('vrate-sum-prod').innerText = `${product} (${unitStr})`;
-                    document.getElementById('vrate-sum-area').innerText = `${format1Decimal(totalArea)} ha`;
+                    document.getElementById('vrate-sum-area').innerText = `${format1Decimal(totalAreaCalculated)} ha`;
                     
-                    let avgDose = totalArea > 0 ? (totalProduct / totalArea) : 0;
+                    let avgDose = totalAreaCalculated > 0 ? (totalProductAcc / totalAreaCalculated) : 0;
                     document.getElementById('vrate-sum-avg').innerText = `${format1Decimal(avgDose)} ${unitStr}`;
                     
-                    let finalTotalStr = unit === 'kg_ha' ? `${format1Decimal(totalProduct / 1000)} Toneladas (${format1Decimal(totalProduct)} kg)` : `${format1Decimal(totalProduct)} Toneladas`;
+                    let finalTotalStr = unit === 'kg_ha' ? `${format1Decimal(totalProductAcc / 1000)} Toneladas (${format1Decimal(totalProductAcc)} kg)` : `${format1Decimal(totalProductAcc)} Toneladas`;
                     document.getElementById('vrate-sum-total').innerText = finalTotalStr;
 
                     const vrateAscDoses = Array.from(new Set(vrateUniqueDoses)).sort((a, b) => a - b);
@@ -1755,27 +1768,19 @@
                         let hexColor = rdYlGnPalette[colorIdx];
                         return `
                             <div class="flex items-center gap-2">
-                                <div class="w-3.5 h-3.5 rounded shadow-sm border border-slate-300" style="background:${hexColor}"></div>
+                                <div class="w-3.5 h-3.5 rounded shadow-sm border border-slate-300" style="background:${d > 0 ? hexColor : '#f1f5f9'}"></div>
                                 <span><b>${d}</b> ${unitStr}</span>
                             </div>
                         `;
                     }).join('');
 
-                    legendHTML += `
-                        <div class="flex items-center gap-2 border-t pt-1 mt-1">
-                            <div class="w-3.5 h-3.5 rounded border border-slate-300" style="background:#f1f5f9"></div>
-                            <span>Sem Aplicação (0 ${unitStr})</span>
-                        </div>
-                    `;
-
                     document.getElementById('vrate-legend-items').innerHTML = legendHTML;
 
-                    alert(`Prescrição processada com sucesso!\nForam encontradas e vinculadas ${matchedCount} áreas com recomendação de ${product}.`);
+                    alert(`Prescrição processada com sucesso!\nForam vinculadas ${matchedCount} áreas preenchidas na planilha.`);
                 };
                 reader.readAsBinaryString(fileInput.files[0]);
             };
 
-            // Se um Shapefile específico de Taxa Variável for carregado, utiliza ele
             if (shpInput && shpInput.files.length) {
                 const shpReader = new FileReader();
                 shpReader.onload = function(e) {
@@ -1791,7 +1796,7 @@
             }
         }
 
-        // DESENHAR CANVAS DO LAUDO DA TAXA VARIÁVEL (PDF COM TABELA DE RESUMO POR TALHÃO)
+        // DESENHAR CANVAS DO LAUDO DA TAXA VARIÁVEL (PDF COM TABELA SEGUINDO MODELO: Campo, Área campo, Total [Insumo], Dose média)
         function drawVRateCanvas(farmInfo, product, unit) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -1826,7 +1831,7 @@
 
             let doseMap = {};
             vrateProcessedData.forEach(item => {
-                if (item.subs) doseMap[cleanString(item.subs)] = item.dose;
+                if (item.subs && item.hasValue) doseMap[cleanString(item.subs)] = item.dose;
             });
 
             const vrateAscDoses = Array.from(new Set(vrateUniqueDoses)).sort((a, b) => a - b);
@@ -1837,7 +1842,7 @@
                 doseColorMap[d] = rdYlGnPalette[i];
             });
 
-            let totalArea = 0, totalProduct = 0;
+            let totalAreaCalculated = 0, totalProductAcc = 0;
 
             if (currentGeoJSON && currentGeoJSON.features && currentGeoJSON.features.length) {
                 let allPts = [];
@@ -1874,17 +1879,14 @@
                     currentGeoJSON.features.forEach(f => {
                         let rawSub = f.properties.Subs || f.properties.SUBS || f.properties.subs || f.properties.Subdivisao || f.properties.Gleba || f.properties.Talhao;
                         let subClean = cleanString(rawSub);
-                        let dose = doseMap[subClean] !== undefined ? doseMap[subClean] : 0;
+                        let doseVal = doseMap[subClean];
                         let area = parseFloat(f.properties.Area || f.properties.AREA || 0);
 
-                        if (dose > 0) {
-                            totalArea += area;
-                            totalProduct += (dose * area);
-                        }
-
                         let fillColor = '#f1f5f9';
-                        if (dose > 0 && doseColorMap[dose]) {
-                            fillColor = doseColorMap[dose];
+                        if (doseVal !== undefined) {
+                            totalAreaCalculated += area;
+                            totalProductAcc += (doseVal * area);
+                            if (doseColorMap[doseVal]) fillColor = doseColorMap[doseVal];
                         }
 
                         const rings = f.geometry.type === 'MultiPolygon' 
@@ -1916,15 +1918,15 @@
                             ctx.stroke();
                         });
 
-                        if (ptCount > 0 && dose > 0) {
+                        if (ptCount > 0 && doseVal !== undefined) {
                             const cx = totalPx / ptCount;
                             const cy = totalPy / ptCount;
                             const subName = f.properties.Subs || f.properties.Subdivisao || f.properties.Talhao || 'Gleba';
 
                             let textLabel = "";
-                            if (showLabels && showValues) textLabel = `${subName}: ${dose} ${unitStr}`;
+                            if (showLabels && showValues) textLabel = `${subName}: ${doseVal} ${unitStr}`;
                             else if (showLabels) textLabel = `${subName}`;
-                            else if (showValues) textLabel = `${dose} ${unitStr}`;
+                            else if (showValues) textLabel = `${doseVal} ${unitStr}`;
 
                             if (textLabel !== "") {
                                 ctx.fillStyle = "#000000";
@@ -1951,7 +1953,7 @@
             ctx.fillText("LEGENDA DE APLICAÇÃO", legX + 15, legY + 25);
 
             let currY = legY + 55;
-            vrateUniqueDoses.slice(0, 6).forEach((d) => {
+            vrateUniqueDoses.slice(0, 8).forEach((d) => {
                 let colorIdx = vrateAscDoses.indexOf(d);
                 let hexColor = rdYlGnPalette[colorIdx];
 
@@ -1967,50 +1969,41 @@
                 currY += 28;
             });
 
-            ctx.fillStyle = "#f1f5f9";
-            ctx.fillRect(legX + 15, currY - 12, 16, 16);
-            ctx.strokeStyle = "#64748B";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(legX + 15, currY - 12, 16, 16);
+            // MONTAGEM DA TABELA SEGUINDO MODELO: Campo | Área campo (ha) | Total [Insumo] (ton) | Dose média por campo (Kg)
+            const tblX = 1205, tblY = 120;
+            const tblW = 360;
 
-            ctx.fillStyle = "#334155";
-            ctx.font = "bold 12px Helvetica, Arial";
-            ctx.fillText(`Sem Aplicação (0 ${unitStr})`, legX + 38, currY);
-
-            // MONTAGEM DA TABELA RESUMO POR TALHÃO NO LAUDO PDF
-            const tblX = 1210, tblY = 120;
-            const tblW = 350;
-
-            // Agrupamento dos Dados por Talhão
             let talhaoMap = {};
             vrateProcessedData.forEach(item => {
-                let tKey = String(item.talhao || 'N/A').toUpperCase();
-                if (!talhaoMap[tKey]) {
-                    talhaoMap[tKey] = { area: 0, totalProd: 0 };
+                if (item.hasValue) {
+                    let tKey = String(item.talhao || 'N/A').toUpperCase();
+                    if (!talhaoMap[tKey]) {
+                        talhaoMap[tKey] = { area: 0, totalProd: 0 };
+                    }
+                    talhaoMap[tKey].area += item.area;
+                    talhaoMap[tKey].totalProd += item.total;
                 }
-                talhaoMap[tKey].area += item.area;
-                talhaoMap[tKey].totalProd += item.total;
             });
 
             const sortedTalhaoKeys = Object.keys(talhaoMap).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
 
-            // Cabeçalho da Tabela
-            ctx.fillStyle = "#3B5323";
-            ctx.fillRect(tblX, tblY, tblW, 28);
+            // Cabeçalho Modelo Exato
+            ctx.fillStyle = "#3A4F1D";
+            ctx.fillRect(tblX, tblY, tblW, 32);
 
             ctx.fillStyle = "#FFFFFF";
-            ctx.font = "bold 12px Helvetica, Arial";
+            ctx.font = "bold 11px Helvetica, Arial";
             ctx.textAlign = "center";
-            ctx.fillText("Talhão", tblX + 40, tblY + 18);
-            ctx.fillText("Resumo Ton/Th", tblX + 130, tblY + 18);
-            ctx.fillText("Área Total", tblX + 225, tblY + 18);
-            ctx.fillText("Dose Média", tblX + 300, tblY + 18);
+            ctx.fillText("Campo", tblX + 35, tblY + 20);
+            ctx.fillText("Área campo (ha)", tblX + 115, tblY + 20);
+            ctx.fillText(`Total ${product} (ton)`, tblX + 215, tblY + 20);
+            ctx.fillText("Dose média por campo (Kg)", tblX + 310, tblY + 20);
 
-            let tY = tblY + 28;
+            let tY = tblY + 32;
             let sumArea = 0, sumProd = 0;
 
             sortedTalhaoKeys.forEach((tKey, idx) => {
-                if (tY > 1050) return; // Limite de altura
+                if (tY > 1050) return;
 
                 let data = talhaoMap[tKey];
                 let avgDose = data.area > 0 ? (data.totalProd / data.area) : 0;
@@ -2019,32 +2012,32 @@
                 sumArea += data.area;
                 sumProd += data.totalProd;
 
-                ctx.fillStyle = idx % 2 === 0 ? "#EEF2E6" : "#E2E8F0";
-                ctx.fillRect(tblX, tY, tblW, 22);
+                ctx.fillStyle = idx % 2 === 0 ? "#EBF1E4" : "#DFE7D6";
+                ctx.fillRect(tblX, tY, tblW, 20);
 
                 ctx.fillStyle = "#1E293B";
-                ctx.font = "bold 11px Helvetica, Arial";
-                ctx.fillText(tKey, tblX + 40, tY + 15);
-                ctx.fillText(`${format1Decimal(prodTon)}`, tblX + 130, tY + 15);
-                ctx.fillText(`${Math.round(data.area)}`, tblX + 225, tY + 15);
-                ctx.fillText(`${Math.round(avgDose)}`, tblX + 300, tY + 15);
+                ctx.font = "10px Helvetica, Arial";
+                ctx.fillText(tKey, tblX + 35, tY + 14);
+                ctx.fillText(`${Math.round(data.area)}`, tblX + 115, tY + 14);
+                ctx.fillText(`${Math.round(prodTon)}`, tblX + 215, tY + 14);
+                ctx.fillText(`${Math.round(avgDose)}`, tblX + 310, tY + 14);
 
-                tY += 22;
+                tY += 20;
             });
 
-            // Linha de Total Geral no Rodapé da Tabela
-            ctx.fillStyle = "#1E3A1E";
-            ctx.fillRect(tblX, tY, tblW, 26);
+            // Linha Total Geral
+            ctx.fillStyle = "#2D3E18";
+            ctx.fillRect(tblX, tY, tblW, 24);
 
             let grandAvgDose = sumArea > 0 ? (sumProd / sumArea) : 0;
             let grandProdTon = unit === 'kg_ha' ? (sumProd / 1000) : sumProd;
 
             ctx.fillStyle = "#FFFFFF";
-            ctx.font = "bold 12px Helvetica, Arial";
-            ctx.fillText("Total Geral", tblX + 40, tY + 17);
-            ctx.fillText(`${Math.round(grandProdTon)}`, tblX + 130, tY + 17);
-            ctx.fillText(`${Math.round(sumArea)}`, tblX + 225, tY + 17);
-            ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 300, tY + 17);
+            ctx.font = "bold 11px Helvetica, Arial";
+            ctx.fillText("Total Geral", tblX + 35, tY + 16);
+            ctx.fillText(`${Math.round(sumArea)}`, tblX + 115, tY + 16);
+            ctx.fillText(`${Math.round(grandProdTon)}`, tblX + 215, tY + 16);
+            ctx.fillText(`${Math.round(grandAvgDose)}`, tblX + 310, tY + 16);
 
             ctx.textAlign = "left";
 
