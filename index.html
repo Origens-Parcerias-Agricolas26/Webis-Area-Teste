@@ -484,7 +484,7 @@
                                     <input type="file" id="seeds-excel-file" accept=".xlsx" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-200 file:text-emerald-900">
                                 </div>
                                 <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Planilha de Cultivares / Variedades (.xlsx) - Opcional</label>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Planilha de Cultivares / Variedades (.xlsx)</label>
                                     <input type="file" id="seeds-cultivar-excel-file" accept=".xlsx" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-200 file:text-emerald-900">
                                 </div>
                                 <button onclick="processSeedsExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition-all">
@@ -569,6 +569,103 @@
                             <p class="text-sm text-slate-500">Cadastre propriedades e gerencie acessos por e-mail Google.</p>
                         </div>
                     </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-tractor text-origens-green mr-2"></i>Cadastrar Nova Fazenda</h3>
+                            <form onsubmit="handleCreateFarmDirect(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ID da Fazenda (sem espaços)</label>
+                                    <input type="text" id="farm-id" required placeholder="Ex: fazenda_boa_vista" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome do Produtor</label>
+                                    <input type="text" id="farm-producer" required placeholder="Ex: João da Silva" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome da Propriedade</label>
+                                    <input type="text" id="farm-name" required placeholder="Ex: Fazenda Boa Vista" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Município/UF</label>
+                                        <input type="text" id="farm-location" required placeholder="Ex: Lucas do Rio Verde - MT" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Área Total (Ha)</label>
+                                        <input type="number" step="0.1" id="farm-area" required placeholder="Ex: 850.5" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl transition-all shadow">
+                                    Salvar Fazenda na Nuvem
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-user-plus text-origens-green mr-2"></i>Autorizar E-mail Google do Cliente</h3>
+                            <form onsubmit="handleCreateUser(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome do Produtor</label>
+                                    <input type="text" id="new-name" required placeholder="Ex: João da Silva" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">E-mail Google / Gmail</label>
+                                    <input type="email" id="new-email" required placeholder="Ex: joao@gmail.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Liberar Acesso Às Fazendas</label>
+                                    <div class="mb-2">
+                                        <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-100 p-2 rounded-lg w-full text-xs font-bold text-slate-800">
+                                            <input type="checkbox" id="chk-farm-all" onchange="toggleAllFarmsCheckboxes(this)" class="h-4 w-4 text-origens-green rounded">
+                                            <span>TODAS AS FAZENDAS (Acesso Total)</span>
+                                        </label>
+                                    </div>
+                                    <div id="new-farm-checkboxes" class="max-h-36 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-3 space-y-2">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-origens-green hover:bg-origens-dark text-white font-bold p-3 rounded-xl transition-all shadow">
+                                    Autorizar E-mail Google
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-map-location-dot text-origens-green mr-2"></i>Fazendas Cadastradas</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100 uppercase text-slate-600 font-bold border-b border-slate-200">
+                                        <tr>
+                                            <th class="p-3">Fazenda / Produtor</th>
+                                            <th class="p-3">Localização</th>
+                                            <th class="p-3">Área (Ha)</th>
+                                            <th class="p-3 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="farms-table-body" class="divide-y border-slate-200 font-medium"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h3 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2"><i class="fa-solid fa-users text-origens-green mr-2"></i>Acessos Autorizados</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100 uppercase text-slate-600 font-bold border-b border-slate-200">
+                                        <tr>
+                                            <th class="p-3">Cliente</th>
+                                            <th class="p-3">E-mail Google</th>
+                                            <th class="p-3">Fazendas Perm.</th>
+                                            <th class="p-3 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-table-body" class="divide-y border-slate-200 font-medium"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -612,18 +709,15 @@
 
         const CULTIVAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#4f46e5', '#059669', '#e11d48'];
 
-        function showSection(sec) {
-            if (sec === 'landing') {
-                document.getElementById('landing-section').classList.remove('hidden');
-                document.getElementById('saas-section').classList.add('hidden');
-            }
+        function showLanding() {
+            document.getElementById('landing-section').classList.remove('hidden');
+            document.getElementById('saas-section').classList.add('hidden');
         }
 
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
             try {
-                const result = await auth.signInWithPopup(provider);
-                currentUser = result.user;
+                await auth.signInWithPopup(provider);
                 await checkUserAuthorization();
             } catch (error) { alert("Erro no login: " + error.message); }
         }
@@ -632,7 +726,7 @@
             try {
                 await auth.signOut();
                 currentUser = null;
-                showSection('landing');
+                showLanding();
             } catch (e) { console.error(e); }
         }
 
@@ -852,7 +946,7 @@
         }
 
         // =========================================================================
-        // MÓDULO SEMENTES & PLANTIO (REGRAS E LEITURAS TOTALMENTE INDEPENDENTES)
+        // MÓDULO SEMENTES & PLANTIO (LEITURA SEPARADA E INDEPENDENTE DE PLANILHAS)
         // =========================================================================
         function initSeedsMap() {
             if (!seedsMap) {
@@ -976,7 +1070,7 @@
             }
         }
 
-        // PROCESSAMENTO DE PLANILHAS INDEPENDENTES (SEM EXIGIR PLANILHA DE DOSES SE SUBIR SÓ CULTIVARES)
+        // PROCESSAMENTO DE PLANILHAS INDEPENDENTES (DOSES DE SEMENTES E CULTIVARES SEPARADAS)
         function processSeedsExcel() {
             const farmKey = document.getElementById('seeds-sel-farm').value;
             const fileInput = document.getElementById('seeds-excel-file');
@@ -986,21 +1080,18 @@
             const unit = document.getElementById('seeds-unit').value;
             const unitStr = unit === 'sem_ha' ? 'sem/ha' : (unit === 'mil_ha' ? 'mil sem/ha' : 'sem/m');
 
-            const hasDosesFile = fileInput && fileInput.files.length > 0;
-            const hasCultivarFile = cultivarFileInput && cultivarFileInput.files.length > 0;
-
-            if (!hasDosesFile && !hasCultivarFile) {
-                alert('Por favor, selecione pelo menos uma planilha (Doses de Sementes e/ou Cultivares)!');
+            if (!fileInput.files.length && (!cultivarFileInput || !cultivarFileInput.files.length)) {
+                alert('Selecione pelo menos uma planilha (Doses de Sementes ou Cultivares)!');
                 return;
             }
 
             const executeSeedsLogic = (targetGeoJSON) => {
                 seedsCustomGeoJSON = targetGeoJSON;
 
-                // 1. Processar Planilha de Cultivares/Variedades
+                // 1. Processar Planilha de Cultivares/Variedades se for enviada
                 const processCultivarFile = () => {
                     return new Promise((resolve) => {
-                        if (hasCultivarFile) {
+                        if (cultivarFileInput && cultivarFileInput.files.length) {
                             const cReader = new FileReader();
                             cReader.onload = function(cEvt) {
                                 const cWorkbook = XLSX.read(cEvt.target.result, { type: 'binary' });
@@ -1025,7 +1116,7 @@
                 // 2. Processar Planilha de Doses de Sementes
                 const processDosesFile = () => {
                     return new Promise((resolve) => {
-                        if (hasDosesFile) {
+                        if (fileInput && fileInput.files.length) {
                             const reader = new FileReader();
                             reader.onload = function(e) {
                                 const workbook = XLSX.read(e.target.result, { type: 'binary' });
@@ -1065,6 +1156,10 @@
                                         totalSeedsAcc += (doseObj.dose * area);
                                         matchedCount++;
 
+                                        f.properties.Rate = doseObj.dose;
+                                        f.properties.SEMENTES = doseObj.dose;
+                                        f.properties.Cultura = crop;
+
                                         seedsProcessedData.push({ 
                                             talhao: f.properties.Talhao || f.properties.TALHAO || 'N/A', 
                                             subs: f.properties.Subs || f.properties.Subdivisao || 'Gleba', 
@@ -1096,13 +1191,8 @@
                 };
 
                 Promise.all([processCultivarFile(), processDosesFile()]).then(() => {
-                    // Alterna automaticamente o modo de exibição conforme a planilha enviada
-                    const viewModeSelect = document.getElementById('seeds-view-mode');
-                    if (!hasDosesFile && hasCultivarFile && viewModeSelect) {
-                        viewModeSelect.value = 'cultivar';
-                    }
                     seedsUpdateMap();
-                    alert("Prescrição de plantio carregada com sucesso!");
+                    alert("Dados de plantio/sementes carregados com sucesso!");
                 });
             };
 
@@ -1319,6 +1409,7 @@
                 ctx.fillText("Área (ha)", tblX + 320, tblY + 21);
 
                 let tY = tblY + 34;
+                let sumArea = 0;
 
                 const sortedSubKeys = Object.keys(seedsCultivarMap).sort();
                 sortedSubKeys.forEach((sKey, idx) => {
