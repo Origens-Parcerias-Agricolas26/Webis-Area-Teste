@@ -1205,7 +1205,7 @@
 
             document.getElementById('edit-farm-key').value = key;
             document.getElementById('farm-id').value = key;
-            document.getElementById('farm-id').disabled = true; // Impede alterar a chave ID
+            document.getElementById('farm-id').disabled = true;
             document.getElementById('farm-producer').value = farm.producer || '';
             document.getElementById('farm-name').value = farm.name || '';
             document.getElementById('farm-location').value = farm.location || '';
@@ -1292,7 +1292,7 @@
             document.getElementById('edit-user-mode').value = "edit";
             document.getElementById('new-name').value = user.name || '';
             document.getElementById('new-email').value = user.email;
-            document.getElementById('new-email').disabled = true; // Chave primária do documento
+            document.getElementById('new-email').disabled = true;
 
             const chkAll = document.getElementById('chk-farm-all');
             const isAll = user.farms && user.farms.includes('all');
@@ -1460,7 +1460,6 @@
         }
 
         function switchTab(tab) {
-            // Trava de segurança para tentativa de acesso direto via aba
             if (tab === 'sampling' && !canAccessSampling) {
                 alert("Você não possui permissão de acesso ao Módulo de Amostragem de Solo.");
                 return;
@@ -2833,7 +2832,7 @@
             }
 
             const fileNameBase = `Plantio_${crop}_Prescricao`;
-            const files = generateSHPFiles(farmObj.geojson, fileNameBase);
+            const files = generateSHPFiles(farmObj ? farmObj.geojson : seedsCustomGeoJSON, fileNameBase);
 
             zip.file(`${pathPrefix}${fileNameBase}.shp`, files.shp);
             zip.file(`${pathPrefix}${fileNameBase}.shx`, files.shx);
@@ -2846,7 +2845,8 @@
             const zipBlob = await zip.generateAsync({ type: 'blob' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(zipBlob);
-            link.download = `Prescricao_Sementes_${crop}_${brand.toUpperCase()}_${farmObj.name.replace(/\s+/g, '_')}.zip`;
+            const farmNameStr = farmObj ? farmObj.name.replace(/\s+/g, '_') : 'Fazenda';
+            link.download = `Prescricao_Sementes_${crop}_${brand.toUpperCase()}_${farmNameStr}.zip`;
             link.click();
         }
 
@@ -3105,16 +3105,18 @@
         }
 
         // =========================================================================
-        // FUNÇÕES DE EXPORTAÇÃO PDF DO MÓDULO DE TAXA VARIÁVEL & ADUBAÇÃO
+        // FUNÇÕES DE EXPORTAÇÃO DO MÓDULO DE TAXA VARIÁVEL & ADUBAÇÃO
         // =========================================================================
         function drawVRateCanvas(farmInfo, product, unit) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
-            const currentGeoJSON = vrateCustomGeoJSON || farmInfo.geojson;
+            const currentGeoJSON = vrateCustomGeoJSON || (farmInfo ? farmInfo.geojson : null);
             const unitStr = unit === 'kg_ha' ? 'kg/ha' : 't/ha';
 
             const showLabels = document.getElementById('vrate-chk-labels') ? document.getElementById('vrate-chk-labels').checked : false;
             const showValues = document.getElementById('vrate-chk-values') ? document.getElementById('vrate-chk-values').checked : true;
+
+            const farmNameStr = farmInfo ? farmInfo.name.toUpperCase() : 'FAZENDA';
 
             ctx.fillStyle = "#FFFFFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -3135,7 +3137,7 @@
 
             ctx.fillStyle = "#D97706";
             ctx.font = "bold 16px Helvetica, Arial";
-            ctx.fillText(`PROPRIEDADE: ${farmInfo.name.toUpperCase()} | INSUMO: ${product.toUpperCase()} (${unitStr})`, 800, 90);
+            ctx.fillText(`PROPRIEDADE: ${farmNameStr} | INSUMO: ${product.toUpperCase()} (${unitStr})`, 800, 90);
 
             ctx.textAlign = "left";
 
@@ -3426,7 +3428,7 @@
                 return; 
             }
             const farmKey = document.getElementById('vrate-sel-farm').value;
-            const farmInfo = farmsDatabase[farmKey] || { name: 'Fazenda' };
+            const farmInfo = farmsDatabase[farmKey] || null;
             const product = document.getElementById('vrate-product').value;
             const unit = document.getElementById('vrate-unit').value;
 
@@ -3435,7 +3437,90 @@
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210);
-            pdf.save(`Laudo_Prescricao_${product}_${farmInfo.name.replace(/\s+/g, '_')}.pdf`);
+            const farmNameStr = farmInfo ? farmInfo.name.replace(/\s+/g, '_') : 'Fazenda';
+            pdf.save(`Laudo_Prescricao_${product}_${farmNameStr}.pdf`);
+        }
+
+        // CORREÇÃO DA EXPORTAÇÃO PARA MONITORES (.ZIP) DE TAXA VARIÁVEL
+        async function exportForMonitor() {
+            if (!vrateProcessedData.length) { 
+                alert('Processe primeiro a planilha de prescrição para exportar aos monitores!'); 
+                return; 
+            }
+
+            const brand = document.getElementById('vrate-monitor-brand').value;
+            const product = document.getElementById('vrate-product').value;
+            const farmKey = document.getElementById('vrate-sel-farm').value;
+            const farmObj = farmsDatabase[farmKey];
+            const targetGeoJSON = vrateCustomGeoJSON || (farmObj ? farmObj.geojson : null);
+
+            if (!targetGeoJSON) {
+                alert("Nenhum mapa espacial (Shapefile/GeoJSON) encontrado para esta prescrição.");
+                return;
+            }
+
+            const zip = new JSZip();
+            let pathPrefix = "";
+
+            switch (brand) {
+                case 'johndeere': pathPrefix = `Rx/`; break;
+                case 'trimble_aggps': pathPrefix = `AgGPS/Prescriptions/`; break;
+                case 'trimble_agdata': pathPrefix = `AgData/Prescriptions/`; break;
+                case 'stara': pathPrefix = `Dados/Mapas/`; break;
+                case 'raven': pathPrefix = `rxMaps/`; break;
+                case 'caseih': pathPrefix = `Shapefile/`; break;
+                case 'jacto': pathPrefix = `OtMIS/Maps/`; break;
+                case 'agres': pathPrefix = `Agres/Prescricao/`; break;
+                default: pathPrefix = `TASKDATA/`; break;
+            }
+
+            const fileNameBase = `${product}_Prescricao`;
+            const files = generateSHPFiles(targetGeoJSON, fileNameBase);
+
+            zip.file(`${pathPrefix}${fileNameBase}.shp`, files.shp);
+            zip.file(`${pathPrefix}${fileNameBase}.shx`, files.shx);
+            zip.file(`${pathPrefix}${fileNameBase}.dbf`, files.dbf);
+            zip.file(`${pathPrefix}${fileNameBase}.prj`, files.prj);
+            zip.file(`${pathPrefix}${fileNameBase}.cpg`, files.cpg);
+
+            zip.file(`${pathPrefix}LEIA-ME_PENDRIVE.txt`, `Instruções de Carga do Monitor (${brand.toUpperCase()}):\n1. Extraia a pasta '${pathPrefix}' diretamente na raiz do seu Pendrive.\n2. Insira o pendrive no monitor do trator/pulverizador.\n3. Importe o mapa de prescrição: ${product}`);
+
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(zipBlob);
+            const farmNameStr = farmObj ? farmObj.name.replace(/\s+/g, '_') : 'Fazenda';
+            link.download = `Prescricao_${product}_${brand.toUpperCase()}_${farmNameStr}.zip`;
+            link.click();
+        }
+
+        // CORREÇÃO DA EXPORTAÇÃO DO RESUMO EM EXCEL (.XLSX)
+        function exportVRateExcelSummary() {
+            if (!vrateProcessedData || !vrateProcessedData.length) { 
+                alert('Nenhum dado de taxa variável gerado. Gerar a prescrição primeiro.'); 
+                return; 
+            }
+            try {
+                const product = document.getElementById('vrate-product').value;
+                const unit = document.getElementById('vrate-unit').value;
+                const unitStr = unit === 'kg_ha' ? 'kg/ha' : 't/ha';
+
+                // Formatar dados em colunas limpas para a planilha
+                const exportData = vrateProcessedData.map(item => ({
+                    "Talhão": item.talhao,
+                    "Subdivisão / Gleba": item.subs,
+                    "Área (ha)": Math.round(item.area * 100) / 100,
+                    [`Dose (${unitStr})`]: Math.round(item.dose * 100) / 100,
+                    [`Total Produto (${unit === 'kg_ha' ? 'kg' : 'ton'})`]: Math.round(item.total * 100) / 100
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Resumo Adubação");
+                XLSX.writeFile(wb, `Resumo_Adubacao_TaxaVariavel_${product}.xlsx`);
+            } catch (err) {
+                console.error("Erro ao gerar Excel:", err);
+                alert("Ocorreu um erro ao exportar o resumo para Excel: " + err.message);
+            }
         }
 
         // =========================================================================
