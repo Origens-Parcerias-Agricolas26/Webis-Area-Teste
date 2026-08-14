@@ -846,6 +846,28 @@
 
         const CULTIVAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#4f46e5', '#059669', '#e11d48'];
 
+        // HELPER PARA SELECIONAR APENAS A SAFRA MAIS RECENTE EM TELAS DE TAXA VARIÁVEL E SEMENTES
+        function getLatestSafraGeoJSON(fullGeoJSON) {
+            if (!fullGeoJSON || !fullGeoJSON.features || !fullGeoJSON.features.length) return fullGeoJSON;
+            
+            let safrasSet = new Set();
+            fullGeoJSON.features.forEach(f => {
+                let s = f.properties ? (f.properties.safra_origem || extractSafra(f.properties)) : null;
+                if (s && /^\d{4}$/.test(s)) safrasSet.add(s);
+            });
+
+            if (!safrasSet.size) return fullGeoJSON;
+
+            let latestSafra = Array.from(safrasSet).sort().pop();
+
+            let filteredFeatures = fullGeoJSON.features.filter(f => {
+                let s = f.properties ? (f.properties.safra_origem || extractSafra(f.properties)) : null;
+                return !s || s === latestSafra;
+            });
+
+            return { type: "FeatureCollection", features: filteredFeatures };
+        }
+
         function showSection(sec) {
             if (sec === 'landing') {
                 document.getElementById('landing-section').classList.remove('hidden');
@@ -1579,6 +1601,7 @@
                             const detectedSafra = extractSafra(f.properties[pKey]);
                             if (detectedSafra && /^\d{4}$/.test(detectedSafra)) safrasSet.add(detectedSafra);
                         });
+                        if (f.properties.safra_origem) safrasSet.add(f.properties.safra_origem);
                     }
                 });
             }
@@ -1614,7 +1637,10 @@
             if (currentGeoJSON.features && currentGeoJSON.features.length) {
                 currentGeoJSON.features.forEach(f => {
                     if (f.properties && f.properties.Talhao) {
-                        if (!selectedSafras.length || (f.properties.safras_historico && selectedSafras.some(s => f.properties.safras_historico[s]))) {
+                        const featureSafra = f.properties.safra_origem || extractSafra(f.properties);
+                        const hasHistorico = f.properties.safras_historico && selectedSafras.some(s => f.properties.safras_historico[s]);
+                        const hasDirectSafra = featureSafra && selectedSafras.includes(featureSafra);
+                        if (!selectedSafras.length || hasHistorico || hasDirectSafra) {
                             talhoesSet.add(String(f.properties.Talhao));
                         }
                     }
@@ -2043,7 +2069,8 @@
             const farmObj = farmsDatabase[farmKey];
             if (!farmObj || !farmObj.geojson) return;
 
-            vrateCustomGeoJSON = farmObj.geojson;
+            // CARREGA APENAS A SAFRA MAIS RECENTE PARA NÃO SOBREPOR PERÍMETROS
+            vrateCustomGeoJSON = getLatestSafraGeoJSON(farmObj.geojson);
 
             if (vrateGeojsonLayer) vrateMap.removeLayer(vrateGeojsonLayer);
 
@@ -2056,7 +2083,7 @@
 
         function vrateUpdateMap() {
             if (!vrateMap || !vrateProcessedData.length) return;
-            const targetGeoJSON = vrateCustomGeoJSON || (farmsDatabase[document.getElementById('vrate-sel-farm').value] ? farmsDatabase[document.getElementById('vrate-sel-farm').value].geojson : null);
+            const targetGeoJSON = vrateCustomGeoJSON || (farmsDatabase[document.getElementById('vrate-sel-farm').value] ? getLatestSafraGeoJSON(farmsDatabase[document.getElementById('vrate-sel-farm').value].geojson) : null);
             if (!targetGeoJSON) return;
 
             const product = document.getElementById('vrate-product').value;
@@ -2248,7 +2275,7 @@
                 shpReader.readAsArrayBuffer(shpInput.files[0]);
             } else {
                 const farmObj = farmsDatabase[farmKey];
-                executeVRateLogic(farmObj.geojson);
+                executeVRateLogic(getLatestSafraGeoJSON(farmObj.geojson));
             }
         }
 
@@ -2271,7 +2298,8 @@
             const farmObj = farmsDatabase[farmKey];
             if (!farmObj || !farmObj.geojson) return;
 
-            seedsCustomGeoJSON = farmObj.geojson;
+            // CARREGA APENAS A SAFRA MAIS RECENTE PARA NÃO SOBREPOR PERÍMETROS
+            seedsCustomGeoJSON = getLatestSafraGeoJSON(farmObj.geojson);
 
             if (seedsGeojsonLayer) seedsMap.removeLayer(seedsGeojsonLayer);
 
@@ -2284,7 +2312,7 @@
 
         function seedsUpdateMap() {
             if (!seedsMap || (!seedsProcessedData.length && !Object.keys(seedsCultivarMap).length)) return;
-            const targetGeoJSON = seedsCustomGeoJSON || (farmsDatabase[document.getElementById('seeds-sel-farm').value] ? farmsDatabase[document.getElementById('seeds-sel-farm').value].geojson : null);
+            const targetGeoJSON = seedsCustomGeoJSON || (farmsDatabase[document.getElementById('seeds-sel-farm').value] ? getLatestSafraGeoJSON(farmsDatabase[document.getElementById('seeds-sel-farm').value].geojson) : null);
             if (!targetGeoJSON) return;
 
             const viewMode = document.getElementById('seeds-view-mode').value;
@@ -2540,7 +2568,7 @@
                 shpReader.readAsArrayBuffer(shpInput.files[0]);
             } else {
                 const farmObj = farmsDatabase[farmKey];
-                executeSeedsLogic(farmObj.geojson);
+                executeSeedsLogic(getLatestSafraGeoJSON(farmObj.geojson));
             }
         }
 
@@ -2548,11 +2576,13 @@
         function drawSeedsCanvas(farmInfo, crop, unit, pdfMode = 'dose') {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
-            const currentGeoJSON = seedsCustomGeoJSON || farmInfo.geojson;
+            const currentGeoJSON = seedsCustomGeoJSON || (farmInfo ? getLatestSafraGeoJSON(farmInfo.geojson) : null);
             const unitStr = unit === 'sem_ha' ? 'sem/ha' : (unit === 'mil_ha' ? 'mil sem/ha' : 'sem/m');
 
             const showLabels = document.getElementById('seeds-chk-labels') ? document.getElementById('seeds-chk-labels').checked : false;
             const showValues = document.getElementById('seeds-chk-values') ? document.getElementById('seeds-chk-values').checked : true;
+
+            const farmNameStr = farmInfo ? farmInfo.name.toUpperCase() : 'FAZENDA';
 
             ctx.fillStyle = "#FFFFFF";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2577,7 +2607,7 @@
 
             ctx.fillStyle = "#1E293B";
             ctx.font = "bold 14px Helvetica, Arial";
-            ctx.fillText(`PROPRIEDADE: ${farmInfo.name.toUpperCase()} | CULTURA: ${crop.toUpperCase()}`, 800, 85);
+            ctx.fillText(`PROPRIEDADE: ${farmNameStr} | CULTURA: ${crop.toUpperCase()}`, 800, 85);
 
             ctx.textAlign = "left";
 
@@ -2728,7 +2758,7 @@
                 });
             }
 
-            // MONTAGEM DA TABELA RESUMO NO PDF
+            // MONTAGEM DA TABELA
             const tblX = 1195, tblY = 110;
             const tblW = 365;
 
@@ -3132,7 +3162,7 @@
         function drawVRateCanvas(farmInfo, product, unit) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
-            const currentGeoJSON = vrateCustomGeoJSON || (farmInfo ? farmInfo.geojson : null);
+            const currentGeoJSON = vrateCustomGeoJSON || (farmInfo ? getLatestSafraGeoJSON(farmInfo.geojson) : null);
             const unitStr = unit === 'kg_ha' ? 'kg/ha' : 't/ha';
 
             const showLabels = document.getElementById('vrate-chk-labels') ? document.getElementById('vrate-chk-labels').checked : false;
@@ -3474,7 +3504,7 @@
             const product = document.getElementById('vrate-product').value;
             const farmKey = document.getElementById('vrate-sel-farm').value;
             const farmObj = farmsDatabase[farmKey];
-            const targetGeoJSON = vrateCustomGeoJSON || (farmObj ? farmObj.geojson : null);
+            const targetGeoJSON = vrateCustomGeoJSON || (farmObj ? getLatestSafraGeoJSON(farmObj.geojson) : null);
 
             if (!targetGeoJSON) {
                 alert("Nenhum mapa espacial (Shapefile/GeoJSON) encontrado para esta prescrição.");
