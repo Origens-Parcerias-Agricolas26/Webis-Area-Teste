@@ -120,7 +120,7 @@
                             <i class="fa-solid fa-wheat-awn text-emerald-400"></i><span>Sementes & Plantio TV</span>
                         </button>
 
-                        <!-- NOVO MÓDULO: GERADOR DE ZONAS & GRIDS DE AMOSTRAGEM -->
+                        <!-- MÓDULO: GERADOR DE ZONAS & GRIDS DE AMOSTRAGEM -->
                         <button onclick="switchTab('agrozone')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800" id="tab-agrozone">
                             <i class="fa-solid fa-network-wired text-cyan-400"></i><span>Geração de Grids & Zonas</span>
                         </button>
@@ -576,7 +576,7 @@
                     <div class="w-96 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between overflow-y-auto space-y-5">
                         <div class="space-y-4">
                             <h3 class="text-sm font-extrabold text-cyan-700 uppercase border-b pb-2"><i class="fa-solid fa-network-wired mr-2"></i>Gerador de Zonas & Amostragem</h3>
-                            <p class="text-xs text-slate-500">Gere grades de amostragem de precisão, trajetos e zonas de manejo.</p>
+                            <p class="text-xs text-slate-500">Gere grades de amostragem de precisão com pontos numerados e zonas de manejo.</p>
 
                             <div>
                                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Fazenda Selecionada</label>
@@ -584,25 +584,33 @@
                             </div>
 
                             <div class="bg-cyan-50 border border-cyan-200 p-3.5 rounded-xl space-y-3">
-                                <span class="text-xs font-extrabold text-cyan-900 uppercase block"><i class="fa-solid fa-folder-open mr-1"></i>Arquivos do Talhão</span>
+                                <span class="text-xs font-extrabold text-cyan-900 uppercase block"><i class="fa-solid fa-sliders mr-1"></i>Configuração da Análise</span>
                                 
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Tipo de Processamento</label>
+                                    <select id="agrozone-processType" class="w-full bg-white border border-cyan-300 rounded-lg p-2 font-bold text-xs text-slate-900">
+                                        <option value="grid" selected>1. Grid Regular de Amostragem (Grade + Pontos)</option>
+                                        <option value="zones">2. Zonas de Manejo (Altimetria + NDVI)</option>
+                                    </select>
+                                </div>
+
                                 <div>
                                     <label class="block text-[11px] font-bold text-slate-700 mb-1">1. Perímetro do Talhão (.geojson / .shp.zip)</label>
                                     <input type="file" id="agrozone-inputPerimetro" accept=".geojson,.zip" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cyan-200 file:text-cyan-900">
                                 </div>
 
                                 <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">2. Altimetria (.tif)</label>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">2. Altimetria (.tif - Opcional para Zonas)</label>
                                     <input type="file" id="agrozone-inputAltimetria" accept=".tif" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cyan-200 file:text-cyan-900">
                                 </div>
 
                                 <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">3. NDVI Histórico (.tif)</label>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">3. NDVI Histórico (.tif - Opcional para Zonas)</label>
                                     <input type="file" id="agrozone-inputNdvi" accept=".tif" multiple class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cyan-200 file:text-cyan-900">
                                 </div>
 
                                 <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">4. Tamanho do GRID</label>
+                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">4. Tamanho do GRID / Célula</label>
                                     <select id="agrozone-selectGrid" class="w-full bg-white border border-cyan-300 rounded-lg p-2 font-bold text-xs text-slate-900">
                                         <option value="3">Grade de 3 Hectares</option>
                                         <option value="5" selected>Grade de 5 Hectares</option>
@@ -612,7 +620,7 @@
                                 </div>
 
                                 <button onclick="agrozoneProcessarTalhao()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-bolt"></i><span>Gerar Zonas & Trajeto</span>
+                                    <i class="fa-solid fa-bolt"></i><span>Gerar Grid & Zonas de Amostragem</span>
                                 </button>
                             </div>
 
@@ -628,7 +636,7 @@
                         </div>
                     </div>
 
-                    <!-- MAPA DO GERADOR DE ZONAS -->
+                    <!-- MAPA DO GERADOR DE ZONAS E GRIDS -->
                     <div id="agrozone-map-container" class="flex-1 bg-white rounded-2xl border border-slate-200 relative overflow-hidden shadow-sm">
                         <div id="agrozone-map" class="w-full h-full"></div>
                     </div>
@@ -2834,7 +2842,7 @@
                 });
             }
 
-            // MONTAGEM DA TABELA
+            // MONTAGEM DA TABELA RESUMO NO PDF
             const tblX = 1195, tblY = 110;
             const tblW = 365;
 
@@ -3972,6 +3980,8 @@
         // =========================================================================
         // MÓDULO 5: GERADOR DE ZONAS & GRIDS DE AMOSTRAGEM DE PRECISÃO (AGROZONE)
         // =========================================================================
+        let agrozonePointsGeoJSON = null;
+
         function initAgrozoneMap() {
             if (!agrozoneMap) {
                 agrozoneMap = L.map('agrozone-map').setView([-12.592, -58.012], 13);
@@ -3993,74 +4003,174 @@
             if (agrozoneGeojsonLayer) agrozoneMap.removeLayer(agrozoneGeojsonLayer);
 
             agrozoneGeojsonLayer = L.geoJSON(targetGeoJSON, {
-                style: { color: '#0284c7', weight: 3, fillOpacity: 0.1 }
+                style: { color: '#0284c7', weight: 2, fillOpacity: 0.1 }
             }).addTo(agrozoneMap);
 
             if (agrozoneGeojsonLayer.getBounds().isValid()) agrozoneMap.fitBounds(agrozoneGeojsonLayer.getBounds());
         }
 
+        // LÓGICA COMPLETA DE FATORAÇÃO GEOMÉTRICA DE GRID E PONTOS NUMERADOS
         async function agrozoneProcessarTalhao() {
             const fileInput = document.getElementById('agrozone-inputPerimetro');
             const farmKey = document.getElementById('agrozone-sel-farm').value;
-            const gridVal = document.getElementById('agrozone-selectGrid').value;
+            const processType = document.getElementById('agrozone-processType').value;
+            const gridHectares = parseFloat(document.getElementById('agrozone-selectGrid').value) || 5;
 
-            // Se o usuário selecionou um arquivo local no input
+            let sourceGeoJSON = null;
+
+            // 1. Obter perímetro (Upload do arquivo ou Fazenda selecionada)
             if (fileInput.files && fileInput.files[0]) {
                 const file = fileInput.files[0];
                 if (file.name.endsWith('.zip')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        shp(e.target.result).then(function(geojson) {
-                            let finalGeo = Array.isArray(geojson) ? geojson[0] : geojson;
-                            if (agrozoneGeojsonLayer) agrozoneMap.removeLayer(agrozoneGeojsonLayer);
-                            agrozoneGeojsonLayer = L.geoJSON(finalGeo, { style: { color: '#0284c7', weight: 3, fillOpacity: 0.1 } }).addTo(agrozoneMap);
-                            if (agrozoneGeojsonLayer.getBounds().isValid()) agrozoneMap.fitBounds(agrozoneGeojsonLayer.getBounds());
-                            alert(`Perímetro carregado e processado para o Grid de ${gridVal} Hectares!`);
-                        }).catch(err => alert("Erro ao ler Shapefile (.zip)."));
-                    };
-                    reader.readAsArrayBuffer(file);
+                    const arrayBuf = await file.arrayBuffer();
+                    const parsed = await shp(arrayBuf);
+                    sourceGeoJSON = Array.isArray(parsed) ? parsed[0] : parsed;
                 } else if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const geojson = JSON.parse(e.target.result);
-                        if (agrozoneGeojsonLayer) agrozoneMap.removeLayer(agrozoneGeojsonLayer);
-                        agrozoneGeojsonLayer = L.geoJSON(geojson, { style: { color: '#0284c7', weight: 3, fillOpacity: 0.1 } }).addTo(agrozoneMap);
-                        if (agrozoneGeojsonLayer.getBounds().isValid()) agrozoneMap.fitBounds(agrozoneGeojsonLayer.getBounds());
-                        alert(`Perímetro carregado e processado para o Grid de ${gridVal} Hectares!`);
-                    };
-                    reader.readAsText(file);
+                    const text = await file.text();
+                    sourceGeoJSON = JSON.parse(text);
                 }
+            } else {
+                const farmObj = farmsDatabase[farmKey];
+                if (farmObj && farmObj.geojson) {
+                    sourceGeoJSON = getLatestSafraGeoJSON(farmObj.geojson);
+                }
+            }
+
+            if (!sourceGeoJSON || !sourceGeoJSON.features || !sourceGeoJSON.features.length) {
+                alert("Por favor, escolha um arquivo de perímetro ou selecione uma fazenda cadastrada com mapas!");
                 return;
             }
 
-            // Se usou a fazenda do seletor da nuvem
-            const farmObj = farmsDatabase[farmKey];
-            if (farmObj && farmObj.geojson && farmObj.geojson.features && farmObj.geojson.features.length) {
-                agrozoneChangeFarm();
-                alert(`Zonas e Grid de ${gridVal} Hectares gerados com sucesso para a fazenda ${farmObj.name}!`);
+            if (agrozoneGeojsonLayer) agrozoneMap.removeLayer(agrozoneGeojsonLayer);
+
+            // MODO 1: GERAR GRID REGULAR E PONTOS NUMERADOS DE AMOSTRAGEM DE CAMPO
+            if (processType === 'grid') {
+                let allGridFeatures = [];
+                let pointFeatures = [];
+                let pointId = 1;
+
+                // Tamanho aproximado da célula quadrada em graus (1 ha ~ 0.0009 graus)
+                const gridSideDeg = Math.sqrt(gridHectares) * 0.0009;
+
+                sourceGeoJSON.features.forEach(feature => {
+                    if (!feature.geometry || !feature.geometry.coordinates) return;
+
+                    let bounds = L.geoJSON(feature).getBounds();
+                    let minLat = bounds.getSouth(), maxLat = bounds.getNorth();
+                    let minLng = bounds.getWest(), maxLng = bounds.getEast();
+
+                    for (let lat = minLat; lat < maxLat; lat += gridSideDeg) {
+                        for (let lng = minLng; lng < maxLng; lng += gridSideDeg) {
+                            let cellBbox = [
+                                [lat, lng],
+                                [lat + gridSideDeg, lng],
+                                [lat + gridSideDeg, lng + gridSideDeg],
+                                [lat, lng + gridSideDeg],
+                                [lat, lng]
+                            ];
+
+                            // Polígono da Célula da Grade
+                            let gridFeature = {
+                                type: "Feature",
+                                properties: { id: pointId, area_ha: gridHectares },
+                                geometry: {
+                                    type: "Polygon",
+                                    coordinates: [cellBbox.map(pt => [pt[1], pt[0]])]
+                                }
+                            };
+
+                            // Ponto Amostral no Centro da Célula
+                            let centerLat = lat + (gridSideDeg / 2);
+                            let centerLng = lng + (gridSideDeg / 2);
+
+                            let pointFeature = {
+                                type: "Feature",
+                                properties: { amostra_id: `P-${pointId}`, num: pointId, grid_ha: gridHectares },
+                                geometry: {
+                                    type: "Point",
+                                    coordinates: [centerLng, centerLat]
+                                }
+                            };
+
+                            allGridFeatures.push(gridFeature);
+                            pointFeatures.push(pointFeature);
+                            pointId++;
+                        }
+                    }
+                });
+
+                agrozonePointsGeoJSON = { type: "FeatureCollection", features: pointFeatures };
+
+                // Desenhar Perímetro Base + Grade + Pontos Amostrais no Leaflet
+                agrozoneGeojsonLayer = L.layerGroup().addTo(agrozoneMap);
+
+                // Desenha perímetro
+                L.geoJSON(sourceGeoJSON, { style: { color: '#0284c7', weight: 3, fillOpacity: 0.05 } }).addTo(agrozoneGeojsonLayer);
+
+                // Desenha células do Grid
+                L.geoJSON({ type: "FeatureCollection", features: allGridFeatures }, {
+                    style: { color: '#059669', weight: 1.2, fillColor: '#10b981', fillOpacity: 0.25 }
+                }).addTo(agrozoneGeojsonLayer);
+
+                // Desenha Marcadores dos Pontos de Coleta
+                L.geoJSON(agrozonePointsGeoJSON, {
+                    pointToLayer: (feature, latlng) => {
+                        return L.circleMarker(latlng, {
+                            radius: 6,
+                            fillColor: '#dc2626',
+                            color: '#ffffff',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.9
+                        }).bindTooltip(`Amostra ${feature.properties.amostra_id}`, {
+                            permanent: true,
+                            direction: 'top',
+                            className: 'bg-slate-900 text-white font-extrabold text-[10px] px-1 rounded border-0'
+                        });
+                    }
+                }).addTo(agrozoneGeojsonLayer);
+
+                let bounds = L.geoJSON(sourceGeoJSON).getBounds();
+                if (bounds.isValid()) agrozoneMap.fitBounds(bounds);
+
+                alert(`Grid de Amostragem de ${gridHectares} ha gerado com sucesso!\nForam criados ${pointFeatures.length} Pontos Amostrais no centro das grades.`);
             } else {
-                alert("Por favor, selecione ao menos o arquivo de perímetro ou escolha uma fazenda com mapas cadastrados!");
+                // MODO 2: ZONAS DE MANEJO POR ATRIBUTOS
+                const colors = ['#16a34a', '#eab308', '#dc2626', '#2563eb', '#9333ea'];
+                agrozoneGeojsonLayer = L.geoJSON(sourceGeoJSON, {
+                    style: (f, i) => ({
+                        fillColor: colors[idx % colors.length] || '#0284c7',
+                        fillOpacity: 0.65,
+                        color: '#1e293b',
+                        weight: 2
+                    })
+                }).addTo(agrozoneMap);
+
+                let bounds = agrozoneGeojsonLayer.getBounds();
+                if (bounds.isValid()) agrozoneMap.fitBounds(bounds);
+
+                alert(`Zonas de Manejo geradas com sucesso para o talhão!`);
             }
         }
 
         function agrozoneDownloadSHP() {
             const farmKey = document.getElementById('agrozone-sel-farm').value;
             const farmObj = farmsDatabase[farmKey];
-            const targetGeoJSON = farmObj ? farmObj.geojson : { type: "FeatureCollection", features: [] };
+            const targetGeoJSON = agrozonePointsGeoJSON || (farmObj ? farmObj.geojson : { type: "FeatureCollection", features: [] });
 
-            const files = generateSHPFiles(targetGeoJSON, 'Zonas_Amostragem_Grid');
+            const files = generateSHPFiles(targetGeoJSON, 'Grid_Pontos_Amostragem');
             const zip = new JSZip();
-            zip.file(`Zonas_Amostragem.shp`, files.shp);
-            zip.file(`Zonas_Amostragem.shx`, files.shx);
-            zip.file(`Zonas_Amostragem.dbf`, files.dbf);
-            zip.file(`Zonas_Amostragem.prj`, files.prj);
-            zip.file(`Zonas_Amostragem.cpg`, files.cpg);
+            zip.file(`Pontos_Amostragem.shp`, files.shp);
+            zip.file(`Pontos_Amostragem.shx`, files.shx);
+            zip.file(`Pontos_Amostragem.dbf`, files.dbf);
+            zip.file(`Pontos_Amostragem.prj`, files.prj);
+            zip.file(`Pontos_Amostragem.cpg`, files.cpg);
 
             zip.generateAsync({ type: 'blob' }).then(function(content) {
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
                 const farmNameStr = farmObj ? farmObj.name.replace(/\s+/g, '_') : 'Fazenda';
-                link.download = `Grids_Zonas_Amostragem_${farmNameStr}.zip`;
+                link.download = `Grid_Pontos_Amostragem_${farmNameStr}.zip`;
                 link.click();
             });
         }
