@@ -120,11 +120,6 @@
                             <i class="fa-solid fa-wheat-awn text-emerald-400"></i><span>Sementes & Plantio TV</span>
                         </button>
 
-                        <!-- MÓDULO: GERADOR DE ZONAS & GRIDS DE AMOSTRAGEM -->
-                        <button onclick="switchTab('agrozone')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800" id="tab-agrozone">
-                            <i class="fa-solid fa-network-wired text-cyan-400"></i><span>Geração de Grids & Zonas</span>
-                        </button>
-
                         <!-- MÓDULO: AMOSTRAGEM DE SOLO -->
                         <button onclick="switchTab('sampling')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hidden" id="tab-sampling">
                             <i class="fa-solid fa-vial-circle-check text-blue-400"></i><span>Amostragem de Solo</span>
@@ -571,106 +566,6 @@
                     </div>
                 </div>
 
-                <!-- MÓDULO 5: GERADOR DE ZONAS & GRIDS DE AMOSTRAGEM DE PRECISÃO (AGROZONE) -->
-                <div id="content-agrozone" class="hidden h-full flex gap-6">
-                    <div class="w-96 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between overflow-y-auto space-y-5">
-                        <div class="space-y-4">
-                            <h3 class="text-sm font-extrabold text-cyan-700 uppercase border-b pb-2"><i class="fa-solid fa-network-wired mr-2"></i>Gerador de Zonas & Amostragem</h3>
-                            <p class="text-xs text-slate-500">Gere grades de amostragem de precisão com pontos numerados e zonas de manejo.</p>
-
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Fazenda Selecionada</label>
-                                <select id="agrozone-sel-farm" onchange="changeActiveFarm('agrozone-sel-farm')" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-sm text-slate-800"></select>
-                            </div>
-
-                            <div class="bg-cyan-50 border border-cyan-200 p-3.5 rounded-xl space-y-3">
-                                <span class="text-xs font-extrabold text-cyan-900 uppercase block"><i class="fa-solid fa-sliders mr-1"></i>Configuração da Análise</span>
-                                
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">Tipo de Processamento</label>
-                                    <select id="agrozone-processType" class="w-full bg-white border border-cyan-300 rounded-lg p-2 font-bold text-xs text-slate-900">
-                                        <option value="grid" selected>1. Grid Regular de Amostragem (Grade + Pontos)</option>
-                                        <option value="zones">2. Zonas de Manejo (Altimetria + NDVI)</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">1. Perímetro do Talhão (.geojson / .shp.zip)</label>
-                                    <input type="file" id="agrozone-inputPerimetro" accept=".geojson,.zip" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cyan-200 file:text-cyan-900">
-                                </div>
-
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">2. Altimetria (.tif - Opcional para Zonas)</label>
-                                    <input type="file" id="agrozone-inputAltimetria" accept=".tif" class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cyan-200 file:text-cyan-900">
-                                </div>
-
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">3. NDVI Histórico (.tif - Opcional para Zonas)</label>
-                                    <input type="file" id="agrozone-inputNdvi" accept=".tif" multiple class="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cyan-200 file:text-cyan-900">
-                                </div>
-
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-700 mb-1">4. Tamanho do GRID / Célula</label>
-                                    <select id="agrozone-selectGrid" class="w-full bg-white border border-cyan-300 rounded-lg p-2 font-bold text-xs text-slate-900">
-                                        <option value="3">Grade de 3 Hectares</option>
-                                        <option value="5" selected>Grade de 5 Hectares</option>
-                                        <option value="7">Grade de 7 Hectares</option>
-                                        <option value="10">Grade de 10 Hectares</option>
-                                    </select>
-                                </div>
-
-                                <button onclick="agrozoneProcessarTalhao()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition-all flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-bolt"></i><span>Gerar Grid & Zonas de Amostragem</span>
-                                </button>
-                            </div>
-
-                            <!-- CONTROLES VISUAIS DE CAMADAS (CHECKBOXES DE ATIVAÇÃO) -->
-                            <div class="space-y-2 pt-2 border-t border-cyan-200">
-                                <span class="text-xs font-bold text-cyan-800 uppercase tracking-wider block mb-1">Camadas Visíveis no Mapa</span>
-                                <label class="flex items-center space-x-3 cursor-pointer">
-                                    <input type="checkbox" id="agrozone-chk-boundary" checked onchange="agrozoneToggleVisibilidade()" class="form-checkbox h-4 w-4 text-cyan-600 rounded">
-                                    <span class="text-xs font-semibold text-slate-700">Contorno do Perímetro</span>
-                                </label>
-                                <label class="flex items-center space-x-3 cursor-pointer">
-                                    <input type="checkbox" id="agrozone-chk-grid" checked onchange="agrozoneToggleVisibilidade()" class="form-checkbox h-4 w-4 text-cyan-600 rounded">
-                                    <span class="text-xs font-semibold text-slate-700">Células da Grade (Grid)</span>
-                                </label>
-                                <label class="flex items-center space-x-3 cursor-pointer">
-                                    <input type="checkbox" id="agrozone-chk-points" checked onchange="agrozoneToggleVisibilidade()" class="form-checkbox h-4 w-4 text-cyan-600 rounded">
-                                    <span class="text-xs font-semibold text-slate-700">Pontos Amostrais (Coleta)</span>
-                                </label>
-                                <label class="flex items-center space-x-3 cursor-pointer">
-                                    <input type="checkbox" id="agrozone-chk-labels" onchange="agrozoneToggleVisibilidade()" class="form-checkbox h-4 w-4 text-cyan-600 rounded">
-                                    <span class="text-xs font-semibold text-slate-700">Rótulos/Números dos Pontos</span>
-                                </label>
-                                <label class="flex items-center space-x-3 cursor-pointer">
-                                    <input type="checkbox" id="agrozone-chk-route" checked onchange="agrozoneToggleVisibilidade()" class="form-checkbox h-4 w-4 text-cyan-600 rounded">
-                                    <span class="text-xs font-semibold text-slate-700">Linha do Trajeto de Coleta</span>
-                                </label>
-                                <label class="flex items-center space-x-3 cursor-pointer">
-                                    <input type="checkbox" id="agrozone-chk-zones" checked onchange="agrozoneToggleVisibilidade()" class="form-checkbox h-4 w-4 text-cyan-600 rounded">
-                                    <span class="text-xs font-semibold text-slate-700">Zonas de Manejo</span>
-                                </label>
-                            </div>
-
-                            <div class="space-y-2 border-t pt-3">
-                                <span class="text-xs font-extrabold text-slate-500 uppercase block">Downloads de Arquivos</span>
-                                <button onclick="agrozoneDownloadSHP()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-file-zipper"></i><span>Baixar Shapefile (.ZIP)</span>
-                                </button>
-                                <button onclick="agrozoneDownloadPDF()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-file-pdf"></i><span>Baixar Relatório PDF</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- MAPA DO GERADOR DE ZONAS E GRIDS -->
-                    <div id="agrozone-map-container" class="flex-1 bg-white rounded-2xl border border-slate-200 relative overflow-hidden shadow-sm">
-                        <div id="agrozone-map" class="w-full h-full"></div>
-                    </div>
-                </div>
-
                 <!-- MÓDULO 4: ACOMPANHAMENTO DE AMOSTRAGEM DE SOLO -->
                 <div id="content-sampling" class="hidden h-full flex flex-col space-y-4 overflow-y-auto pr-2">
                     <!-- Cabeçalho Módulo -->
@@ -930,17 +825,8 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let mapLeft = null, mapRight = null, vrateMap = null, seedsMap = null, agrozoneMap = null;
+        let mapLeft = null, mapRight = null, vrateMap = null, seedsMap = null;
         let geojsonLayerLeft = null, geojsonLayerRight = null, vrateGeojsonLayer = null, seedsGeojsonLayer = null;
-        
-        // Camadas do Módulo Agrozone para Controle por Checkbox
-        let agrozoneBoundaryLayer = null;
-        let agrozoneGridLayer = null;
-        let agrozonePointsLayer = null;
-        let agrozoneLabelsLayer = null;
-        let agrozoneRouteLayer = null;
-        let agrozoneZonesLayer = null;
-
         let tileLayerLeft = null, tileLayerRight = null;
         let currentUser = null, currentUserRole = "client", currentUserAllowedFarms = ["all"], canAccessSampling = false;
         let farmsDatabase = {}, usersDatabase = [];
@@ -1543,12 +1429,10 @@
             const farmSelect = document.getElementById('sel-farm');
             const vrateSelect = document.getElementById('vrate-sel-farm');
             const seedsSelect = document.getElementById('seeds-sel-farm');
-            const agrozoneSelect = document.getElementById('agrozone-sel-farm');
 
             if (farmSelect) farmSelect.innerHTML = '';
             if (vrateSelect) vrateSelect.innerHTML = '';
             if (seedsSelect) seedsSelect.innerHTML = '';
-            if (agrozoneSelect) agrozoneSelect.innerHTML = '';
 
             let keysToDisplay = Object.keys(farmsDatabase);
             if (currentUserRole !== 'admin' && !currentUserAllowedFarms.includes('all')) {
@@ -1561,7 +1445,6 @@
                     if (farmSelect) farmSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
                     if (vrateSelect) vrateSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
                     if (seedsSelect) seedsSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
-                    if (agrozoneSelect) agrozoneSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
                 }
             });
 
@@ -1581,7 +1464,7 @@
 
         function changeActiveFarm(sourceSelectId) {
             const selectedVal = document.getElementById(sourceSelectId).value;
-            ['sel-farm', 'vrate-sel-farm', 'seeds-sel-farm', 'agrozone-sel-farm'].forEach(id => {
+            ['sel-farm', 'vrate-sel-farm', 'seeds-sel-farm'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el && el.value !== selectedVal) el.value = selectedVal;
             });
@@ -1593,8 +1476,6 @@
                 seedsChangeFarm();
             } else if (document.getElementById('content-vrate') && !document.getElementById('content-vrate').classList.contains('hidden')) {
                 vrateChangeFarm();
-            } else if (document.getElementById('content-agrozone') && !document.getElementById('content-agrozone').classList.contains('hidden')) {
-                agrozoneChangeFarm();
             } else {
                 updateGISMap();
             }
@@ -1606,7 +1487,7 @@
                 return;
             }
 
-            ['maps', 'vrate', 'seeds', 'agrozone', 'sampling', 'users'].forEach(t => {
+            ['maps', 'vrate', 'seeds', 'sampling', 'users'].forEach(t => {
                 const el = document.getElementById(`content-${t}`);
                 const btn = document.getElementById(`tab-${t}`);
                 if (el) el.classList.add('hidden');
@@ -1624,9 +1505,6 @@
             } else if (tab === 'seeds') {
                 initSeedsMap();
                 setTimeout(() => { if (seedsMap) { seedsMap.invalidateSize(); seedsChangeFarm(); } }, 100);
-            } else if (tab === 'agrozone') {
-                initAgrozoneMap();
-                setTimeout(() => { if (agrozoneMap) { agrozoneMap.invalidateSize(); agrozoneChangeFarm(); } }, 100);
             } else if (tab === 'sampling') {
                 fetchSamplingData();
             } else if (tab === 'maps') {
@@ -2880,7 +2758,7 @@
                 });
             }
 
-            // MONTAGEM DA TABELA
+            // MONTAGEM DA TABELA RESUMO NO PDF
             const tblX = 1195, tblY = 110;
             const tblW = 365;
 
@@ -4014,176 +3892,6 @@
                 alert("Envie pelo menos o arquivo Shapefile (.zip) da fazenda!");
             }
         }
-
-        // =========================================================================
-        // MÓDULO 5: GERADOR DE ZONAS & GRIDS DE AMOSTRAGEM DE PRECISÃO (AGROZONE)
-        // =========================================================================
-        let agrozonePointsGeoJSON = null;
-
-        function initAgrozoneMap() {
-            if (!agrozoneMap) {
-                agrozoneMap = L.map('agrozone-map').setView([-12.592, -58.012], 13);
-                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Esri Satellite', maxZoom: 18
-                }).addTo(agrozoneMap);
-
-                // Inicializar os Layer Groups para controle independente
-                agrozoneBoundaryLayer = L.layerGroup().addTo(agrozoneMap);
-                agrozoneGridLayer = L.layerGroup().addTo(agrozoneMap);
-                agrozonePointsLayer = L.layerGroup().addTo(agrozoneMap);
-                agrozoneLabelsLayer = L.layerGroup().addTo(agrozoneMap);
-                agrozoneRouteLayer = L.layerGroup().addTo(agrozoneMap);
-                agrozoneZonesLayer = L.layerGroup().addTo(agrozoneMap);
-            }
-            agrozoneChangeFarm();
-        }
-
-        function agrozoneChangeFarm() {
-            if (!agrozoneMap) return;
-            const farmKey = document.getElementById('agrozone-sel-farm').value;
-            const farmObj = farmsDatabase[farmKey];
-            if (!farmObj || !farmObj.geojson) return;
-
-            const targetGeoJSON = getLatestSafraGeoJSON(farmObj.geojson);
-
-            agrozoneLimparCamadas();
-
-            L.geoJSON(targetGeoJSON, {
-                style: { color: '#0284c7', weight: 2, fillOpacity: 0.1 }
-            }).addTo(agrozoneBoundaryLayer);
-
-            let bounds = agrozoneBoundaryLayer.getBounds();
-            if (bounds && bounds.isValid()) agrozoneMap.fitBounds(bounds);
-        }
-
-        function agrozoneLimparCamadas() {
-            if (agrozoneBoundaryLayer) agrozoneBoundaryLayer.clearLayers();
-            if (agrozoneGridLayer) agrozoneGridLayer.clearLayers();
-            if (agrozonePointsLayer) agrozonePointsLayer.clearLayers();
-            if (agrozoneLabelsLayer) agrozoneLabelsLayer.clearLayers();
-            if (agrozoneRouteLayer) agrozoneRouteLayer.clearLayers();
-            if (agrozoneZonesLayer) agrozoneZonesLayer.clearLayers();
-        }
-
-        // CONTROLE VISUAL LIGA/DESLIGA CAMADAS POR CHECKBOX
-        function agrozoneToggleVisibilidade() {
-            if (!agrozoneMap) return;
-
-            const chkBoundary = document.getElementById('agrozone-chk-boundary')?.checked;
-            const chkGrid = document.getElementById('agrozone-chk-grid')?.checked;
-            const chkPoints = document.getElementById('agrozone-chk-points')?.checked;
-            const chkLabels = document.getElementById('agrozone-chk-labels')?.checked;
-            const chkRoute = document.getElementById('agrozone-chk-route')?.checked;
-            const chkZones = document.getElementById('agrozone-chk-zones')?.checked;
-
-            if (agrozoneBoundaryLayer) chkBoundary ? agrozoneMap.addLayer(agrozoneBoundaryLayer) : agrozoneMap.removeLayer(agrozoneBoundaryLayer);
-            if (agrozoneGridLayer) chkGrid ? agrozoneMap.addLayer(agrozoneGridLayer) : agrozoneMap.removeLayer(agrozoneGridLayer);
-            if (agrozonePointsLayer) chkPoints ? agrozoneMap.addLayer(agrozonePointsLayer) : agrozoneMap.removeLayer(agrozonePointsLayer);
-            if (agrozoneLabelsLayer) chkLabels ? agrozoneMap.addLayer(agrozoneLabelsLayer) : agrozoneMap.removeLayer(agrozoneLabelsLayer);
-            if (agrozoneRouteLayer) chkRoute ? agrozoneMap.addLayer(agrozoneRouteLayer) : agrozoneMap.removeLayer(agrozoneRouteLayer);
-            if (agrozoneZonesLayer) chkZones ? agrozoneMap.addLayer(agrozoneZonesLayer) : agrozoneMap.removeLayer(agrozoneZonesLayer);
-        }
-
-        // LÓGICA COMPLETA DE FATORAÇÃO GEOMÉTRICA DE GRID E PONTOS NUMERADOS
-        async function agrozoneProcessarTalhao() {
-            const fileInput = document.getElementById('agrozone-inputPerimetro');
-            const farmKey = document.getElementById('agrozone-sel-farm').value;
-            const processType = document.getElementById('agrozone-processType').value;
-            const gridHectares = parseFloat(document.getElementById('agrozone-selectGrid').value) || 5;
-
-            let sourceGeoJSON = null;
-
-            // 1. Obter perímetro (Upload do arquivo ou Fazenda selecionada)
-            if (fileInput.files && fileInput.files[0]) {
-                const file = fileInput.files[0];
-                if (file.name.endsWith('.zip')) {
-                    const arrayBuf = await file.arrayBuffer();
-                    const parsed = await shp(arrayBuf);
-                    sourceGeoJSON = Array.isArray(parsed) ? parsed[0] : parsed;
-                } else if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
-                    const text = await file.text();
-                    sourceGeoJSON = JSON.parse(text);
-                }
-            } else {
-                const farmObj = farmsDatabase[farmKey];
-                if (farmObj && farmObj.geojson) {
-                    sourceGeoJSON = getLatestSafraGeoJSON(farmObj.geojson);
-                }
-            }
-
-            if (!sourceGeoJSON || !sourceGeoJSON.features || !sourceGeoJSON.features.length) {
-                alert("Por favor, escolha um arquivo de perímetro ou selecione uma fazenda cadastrada com mapas!");
-                return;
-            }
-
-            agrozoneLimparCamadas();
-
-            // MODO 1: GERAR GRID REGULAR E PONTOS NUMERADOS DE AMOSTRAGEM DE CAMPO
-            if (processType === 'grid') {
-                let allGridFeatures = [];
-                let pointFeatures = [];
-                let routeLatLngs = [];
-                let pointId = 1;
-
-                // Tamanho aproximado da célula quadrada em graus (1 ha ~ 0.0009 graus)
-                const gridSideDeg = Math.sqrt(gridHectares) * 0.0009;
-
-                sourceGeoJSON.features.forEach(feature => {
-                    if (!feature.geometry || !feature.geometry.coordinates) return;
-
-                    let bounds = L.geoJSON(feature).getBounds();
-                    let minLat = bounds.getSouth(), maxLat = bounds.getNorth();
-                    let minLng = bounds.getWest(), maxLng = bounds.getEast();
-
-                    for (let lat = minLat; lat < maxLat; lat += gridSideDeg) {
-                        for (let lng = minLng; lng < maxLng; lng += gridSideDeg) {
-                            let cellBbox = [
-                                [lat, lng],
-                                [lat + gridSideDeg, lng],
-                                [lat + gridSideDeg, lng + gridSideDeg],
-                                [lat, lng + gridSideDeg],
-                                [lat, lng]
-                            ];
-
-                            // Polígono da Célula da Grade
-                            let gridFeature = {
-                                type: "Feature",
-                                properties: { id: pointId, area_ha: gridHectares },
-                                geometry: {
-                                    type: "Polygon",
-                                    coordinates: [cellBbox.map(pt => [pt[1], pt[0]])]
-                                }
-                            };
-
-                            // Ponto Amostral no Centro da Célula
-                            let centerLat = lat + (gridSideDeg / 2);
-                            let centerLng = lng + (gridSideDeg / 2);
-
-                            let pointFeature = {
-                                type: "Feature",
-                                properties: { amostra_id: `P-${pointId}`, num: pointId, grid_ha: gridHectares },
-                                geometry: {
-                                    type: "Point",
-                                    coordinates: [centerLng, centerLat]
-                                }
-                            };
-
-                            allGridFeatures.push(gridFeature);
-                            pointFeatures.push(pointFeature);
-                            routeLatLngs.push([centerLat, centerLng]);
-                            pointId++;
-                        }
-                    }
-                });
-
-                agrozonePointsGeoJSON = { type: "FeatureCollection", features: pointFeatures };
-
-                // 1. Contorno
-                L.geoJSON(sourceGeoJSON, { style: { color: '#0284c7', weight: 3, fillOpacity: 0.05 } }).addTo(agrozoneBoundaryLayer);
-
-                // 2. Células do Grid
-                L.geoJSON({ type: "FeatureCollection", features: allGridFeatures }, {
-                    style: { color: '#059669', weight: 1.2, fillColor: '#10b981', fillOpacity: 0.2 }
-                }).addTo(agrozoneGridLayer);
-
-                // 3. Pontos de Amostragem (CírculosNão fui programado para fazer isso.
+    </script>
+</body>
+</html>
