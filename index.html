@@ -178,6 +178,14 @@
                                 <div id="container-talhao-checkboxes" class="max-h-40 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-2 space-y-1 text-xs"></div>
                             </div>
 
+                            <!-- NOVA SEÇÃO: HISTÓRICO DE PRESCRIÇÕES SALVAS NA SAFRA -->
+                            <div class="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-2">
+                                <span class="text-xs font-extrabold text-indigo-900 uppercase block"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Histórico de Prescrições Salvas</span>
+                                <div id="container-saved-maps" class="max-h-36 overflow-y-auto space-y-1.5 text-xs">
+                                    <span class="text-slate-400 italic block text-[11px]">Nenhum mapa salvo para esta safra.</span>
+                                </div>
+                            </div>
+
                             <div id="upload-box-admin" class="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-3 hidden">
                                 <span class="text-xs font-extrabold text-amber-800 uppercase block"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Importar Projeto & Planilhas</span>
                                 <div>
@@ -415,6 +423,9 @@
                                         <option value="isobus">ISO-XML Genérico (ISOBUS / TaskData) - [TASKDATA\]</option>
                                     </select>
                                 </div>
+                                <button onclick="saveVRateMapToPlatform()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-xl shadow text-xs flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-cloud-arrow-up text-amber-300"></i><span>Salvar Mapa na Plataforma (Nuvem)</span>
+                                </button>
                                 <button onclick="generateVRatePDF()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold p-3 rounded-xl shadow text-xs flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-file-pdf"></i><span>Exportar Laudo PDF de Prescrição</span>
                                 </button>
@@ -543,6 +554,12 @@
                                         <option value="isobus">ISO-XML Genérico (ISOBUS / TaskData) - [TASKDATA\]</option>
                                     </select>
                                 </div>
+                                <button onclick="saveSeedsMapToPlatform('dose')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-cloud-arrow-up text-emerald-300"></i><span>Salvar Mapa de População na Nuvem</span>
+                                </button>
+                                <button onclick="saveSeedsMapToPlatform('cultivar')" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-cloud-arrow-up text-amber-300"></i><span>Salvar Mapa de Cultivares na Nuvem</span>
+                                </button>
                                 <button onclick="generateSeedsPDF('dose')" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold p-2.5 rounded-xl shadow text-xs flex items-center justify-center gap-2">
                                     <i class="fa-solid fa-file-pdf"></i><span>Exportar Laudo PDF por População</span>
                                 </button>
@@ -830,6 +847,7 @@
         let tileLayerLeft = null, tileLayerRight = null;
         let currentUser = null, currentUserRole = "client", currentUserAllowedFarms = ["all"], canAccessSampling = false;
         let farmsDatabase = {}, usersDatabase = [];
+        let savedPrescriptionsDatabase = [];
         let splitPosition = 0.5, isSyncing = false;
 
         let vrateProcessedData = [];
@@ -1169,6 +1187,15 @@
                 usersSnap.forEach(doc => {
                     usersDatabase.push({ email: doc.id, ...doc.data() });
                 });
+
+                // CARREGAR HISTÓRICO DE MAPAS E PRESCRIÇÕES SALVAS DA NUVEM
+                try {
+                    const prescrSnap = await db.collection("prescriptions").orderBy("createdAt", "desc").get();
+                    savedPrescriptionsDatabase = [];
+                    prescrSnap.forEach(pDoc => {
+                        savedPrescriptionsDatabase.push({ id: pDoc.id, ...pDoc.data() });
+                    });
+                } catch (ePrescr) { console.warn("Aviso ao carregar prescrições salvas:", ePrescr); }
 
                 populateFarmSelector();
                 renderAdminTables();
@@ -1588,6 +1615,7 @@
 
             if (!selectedFarmKey || !farmsDatabase[selectedFarmKey]) {
                 container.innerHTML = '<span class="text-slate-400 italic">Sem safras salvas</span>';
+                renderSavedPrescriptionsList();
                 return;
             }
 
@@ -1609,15 +1637,18 @@
             const sortedSafras = Array.from(safrasSet).sort().reverse();
             if (!sortedSafras.length) {
                 container.innerHTML = '<span class="text-slate-400 italic">Sem safras salvas</span>';
+                renderSavedPrescriptionsList();
                 return;
             }
 
             container.innerHTML = sortedSafras.map((s, idx) => `
                 <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" name="chk-safra-item" value="${s}" ${idx === 0 ? 'checked' : ''} onchange="updateGISMap(); populateTalhaoSelector();" class="chk-safra-item h-3.5 w-3.5 text-origens-green rounded">
+                    <input type="checkbox" name="chk-safra-item" value="${s}" ${idx === 0 ? 'checked' : ''} onchange="updateGISMap(); populateTalhaoSelector(); renderSavedPrescriptionsList();" class="chk-safra-item h-3.5 w-3.5 text-origens-green rounded">
                     <span>Safra ${s}</span>
                 </label>
             `).join('');
+
+            renderSavedPrescriptionsList();
         }
 
         function populateTalhaoSelector() {
@@ -1687,6 +1718,7 @@
             const anyUnchecked = Array.from(items).some(i => !i.checked);
             items.forEach(i => i.checked = anyUnchecked);
             populateTalhaoSelector();
+            renderSavedPrescriptionsList();
             updateGISMap();
         }
 
@@ -1709,6 +1741,52 @@
         function getSelectedTalhoes() {
             const checked = document.querySelectorAll('.chk-talhao-item:checked');
             return Array.from(checked).map(i => i.value);
+        }
+
+        // EXIBIR HISTÓRICO DE MAPAS E PRESCRIÇÕES SALVAS NA SAFRA ATIVA
+        function renderSavedPrescriptionsList() {
+            const container = document.getElementById('container-saved-maps');
+            if (!container) return;
+
+            const selectedFarmKey = document.getElementById('sel-farm')?.value;
+            const selectedSafras = getSelectedSafras();
+
+            if (!selectedFarmKey || !selectedSafras.length) {
+                container.innerHTML = `<span class="text-slate-400 italic block text-[11px]">Selecione uma fazenda e safra.</span>`;
+                return;
+            }
+
+            const activeSafra = selectedSafras[0];
+            const filtered = savedPrescriptionsDatabase.filter(p => p.farmId === selectedFarmKey && String(p.safra) === String(activeSafra));
+
+            if (!filtered.length) {
+                container.innerHTML = `<span class="text-slate-400 italic block text-[11px]">Nenhum mapa salvo na Safra ${activeSafra}.</span>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(p => `
+                <div class="bg-white p-2 rounded-lg border border-indigo-100 shadow-sm flex items-center justify-between gap-1 hover:border-indigo-300">
+                    <div class="overflow-hidden">
+                        <span class="font-bold block text-slate-800 truncate text-[11px]">${p.title}</span>
+                        <span class="text-[10px] text-slate-500 block">${p.type === 'vrate' ? 'Fertilizantes TV' : 'Sementes TV'} | ${new Date(p.createdAt).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="downloadSavedPDF('${p.id}')" class="text-amber-600 hover:text-amber-800 p-1" title="Baixar Laudo PDF"><i class="fa-solid fa-file-pdf"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function downloadSavedPDF(prescrId) {
+            const p = savedPrescriptionsDatabase.find(item => item.id === prescrId);
+            if (!p || !p.pdfBase64) {
+                alert("Laudo PDF não encontrado para esta prescrição.");
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = p.pdfBase64;
+            link.download = `Laudo_${p.title.replace(/\s+/g, '_')}_Safra_${p.safra}.pdf`;
+            link.click();
         }
 
         function initLeafletMap() {
@@ -1842,11 +1920,11 @@
                 ];
             } else if (param === 'Classes de P') {
                 return [
-                    { min: 1, max: 1, color: '#2B75E2', label: 'Classe 1 - Alto' },
-                    { min: 2, max: 2, color: '#265922', label: 'Classe 2 - Adequado' },
+                    { min: 5, max: 5, color: '#2B75E2', label: 'Classe 5 - Alto' },
+                    { min: 4, max: 4, color: '#265922', label: 'Classe 4 - Adequado' },
                     { min: 3, max: 3, color: '#FFFF00', label: 'Classe 3 - Médio' },
-                    { min: 4, max: 4, color: '#FF8811', label: 'Classe 4 - Baixo' },
-                    { min: 5, max: 5, color: '#801A1A', label: 'Classe 5 - Muito Baixo' }                    
+                    { min: 2, max: 2, color: '#FF8811', label: 'Classe 2 - Baixo' },
+                    { min: 1, max: 1, color: '#801A1A', label: 'Classe 1 - Muito Baixo' }
                 ];
             } else if (param === 'pH_água') {
                 return [
@@ -2279,6 +2357,48 @@
             }
         }
 
+        // SALVAR MAPA DE TAXA VARIÁVEL & ADUBAÇÃO NA NUVEM FIRESTORE
+        async function saveVRateMapToPlatform() {
+            if (!vrateProcessedData.length) {
+                alert("Gere o mapa de prescrição primeiro antes de salvar na plataforma!");
+                return;
+            }
+            const farmKey = document.getElementById('vrate-sel-farm').value;
+            const farmInfo = farmsDatabase[farmKey];
+            const product = document.getElementById('vrate-product').value;
+            const unit = document.getElementById('vrate-unit').value;
+
+            // Identificar a Safra Ativa
+            let activeSafra = '2026';
+            if (vrateCustomGeoJSON && vrateCustomGeoJSON.features && vrateCustomGeoJSON.features.length) {
+                const s = extractSafra(vrateCustomGeoJSON.features[0].properties);
+                if (s) activeSafra = s;
+            }
+
+            const pdfBase64 = drawVRateCanvas(farmInfo, product, unit);
+
+            const record = {
+                farmId: farmKey,
+                farmName: farmInfo ? farmInfo.name : 'Fazenda',
+                safra: activeSafra,
+                type: 'vrate',
+                title: `Adubação TV (${product})`,
+                product: product,
+                unit: unit,
+                pdfBase64: pdfBase64,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                await db.collection("prescriptions").add(record);
+                await loadCloudData();
+                alert(`Mapa de Adubação de ${product} salvo com sucesso na Safra ${activeSafra}!`);
+            } catch (err) {
+                console.error("Erro ao salvar mapa na plataforma:", err);
+                alert("Erro ao salvar na nuvem: " + err.message);
+            }
+        }
+
         // =========================================================================
         // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES
         // =========================================================================
@@ -2569,6 +2689,48 @@
             } else {
                 const farmObj = farmsDatabase[farmKey];
                 executeSeedsLogic(getLatestSafraGeoJSON(farmObj.geojson));
+            }
+        }
+
+        // SALVAR MAPA DE SEMENTES / PLANTIO NA NUVEM FIRESTORE
+        async function saveSeedsMapToPlatform(pdfMode = 'dose') {
+            if (!seedsProcessedData.length && !Object.keys(seedsCultivarMap).length) {
+                alert("Gere o mapa de prescrição de sementes primeiro antes de salvar na plataforma!");
+                return;
+            }
+            const farmKey = document.getElementById('seeds-sel-farm').value;
+            const farmInfo = farmsDatabase[farmKey];
+            const crop = document.getElementById('seeds-crop').value;
+            const unit = document.getElementById('seeds-unit').value;
+
+            let activeSafra = '2026';
+            if (seedsCustomGeoJSON && seedsCustomGeoJSON.features && seedsCustomGeoJSON.features.length) {
+                const s = extractSafra(seedsCustomGeoJSON.features[0].properties);
+                if (s) activeSafra = s;
+            }
+
+            const pdfBase64 = drawSeedsCanvas(farmInfo, crop, unit, pdfMode);
+
+            const record = {
+                farmId: farmKey,
+                farmName: farmInfo ? farmInfo.name : 'Fazenda',
+                safra: activeSafra,
+                type: 'seeds',
+                subType: pdfMode,
+                title: pdfMode === 'cultivar' ? `Variedades (${crop})` : `Plantio TV (${crop})`,
+                crop: crop,
+                unit: unit,
+                pdfBase64: pdfBase64,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                await db.collection("prescriptions").add(record);
+                await loadCloudData();
+                alert(`Mapa de ${record.title} salvo com sucesso na Safra ${activeSafra}!`);
+            } catch (err) {
+                console.error("Erro ao salvar mapa na plataforma:", err);
+                alert("Erro ao salvar na nuvem: " + err.message);
             }
         }
 
