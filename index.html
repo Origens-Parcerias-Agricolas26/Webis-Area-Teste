@@ -1,8 +1,21 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <!--
+    ===================================================================
+     PLATAFORMA WEBGIS - ORIGENS PARCERIAS AGRÍCOLAS
+     Propriedade Intelectual e Direitos Reservados:
+     Autor / Proprietário: Tiago Ritter Moreira
+     Empresa: Origens Parcerias Agrícolas LTDA
+     Todos os direitos reservados.
+    ===================================================================
+    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Tiago Ritter Moreira">
+    <meta name="copyright" content="Origens Parcerias Agrícolas LTDA">
+    <meta name="owner" content="Tiago Ritter Moreira - Origens Parcerias Agrícolas LTDA">
+    
     <title>Origens - Parcerias Agrícolas | WebGIS Pro</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -178,7 +191,7 @@
                                 <div id="container-talhao-checkboxes" class="max-h-40 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-2 space-y-1 text-xs"></div>
                             </div>
 
-                            <!-- NOVO MÓDULO: PLANILHA COMPLEMENTAR / RESULTADOS (.XLSX) -->
+                            <!-- MÓDULO: PLANILHA COMPLEMENTAR / RESULTADOS (.XLSX) -->
                             <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-xl space-y-2">
                                 <span class="text-xs font-extrabold text-blue-900 uppercase block"><i class="fa-solid fa-file-excel mr-1"></i>Planilha Complementar / Resultados</span>
                                 <div id="container-extra-excel" class="space-y-2 text-xs">
@@ -1232,7 +1245,6 @@
                     });
                 } catch (ePrescr) { console.warn("Aviso ao carregar prescrições salvas:", ePrescr); }
 
-                // CARREGAR PLANILHAS COMPLEMENTARES/EXTRAS DA NUVEM
                 try {
                     const extraSnap = await db.collection("extra_excels").get();
                     extraExcelDatabase = [];
@@ -3084,7 +3096,7 @@
                 ctx.strokeRect(legX, legY, legW, legH);
 
                 ctx.fillStyle = "#0F172A";
-                ctx.font = "bold 14px Helvetica, Arial";
+                ctx.font = "bold 10px Helvetica, Arial";
                 ctx.fillText("POPULAÇÃO DE PLANTIO", legX + 12, legY + 25);
 
                 let currY = legY + 50;
