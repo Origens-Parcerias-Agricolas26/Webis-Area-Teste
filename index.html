@@ -112,11 +112,11 @@
                             <i class="fa-solid fa-layer-group text-origens-green"></i><span>Visualizador GIS</span>
                         </button>
 
-                        <button onclick="switchTab('vrate')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800" id="tab-vrate">
+                        <button onclick="switchTab('vrate')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hidden" id="tab-vrate">
                             <i class="fa-solid fa-tractor text-amber-500"></i><span>Taxa Variável & Adubação</span>
                         </button>
 
-                        <button onclick="switchTab('seeds')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800" id="tab-seeds">
+                        <button onclick="switchTab('seeds')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hidden" id="tab-seeds">
                             <i class="fa-solid fa-wheat-awn text-emerald-400"></i><span>Sementes & Plantio TV</span>
                         </button>
 
@@ -762,13 +762,24 @@
                                     </div>
                                 </div>
 
-                                <!-- PERMISSÃO ESPECÍFICA DE AMOSTRAGEM DE SOLO -->
-                                <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl space-y-1">
-                                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-extrabold text-blue-900">
-                                        <input type="checkbox" id="chk-allow-sampling" class="h-4 w-4 text-blue-600 rounded">
-                                        <span><i class="fa-solid fa-vial-circle-check text-blue-600 mr-1"></i>Permitir Acesso ao Módulo de Amostragem de Solo</span>
+                                <!-- PERMISSÕES ESPECÍFICAS DE MÓDULOS DA PLATAFORMA -->
+                                <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl space-y-2">
+                                    <span class="text-xs font-bold text-blue-900 uppercase block border-b border-blue-200 pb-1">Permissões de Módulos</span>
+                                    
+                                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
+                                        <input type="checkbox" id="chk-allow-vrate" class="h-4 w-4 text-amber-600 rounded">
+                                        <span><i class="fa-solid fa-tractor text-amber-600 mr-1"></i>Permitir Módulo de Taxa Variável & Adubação</span>
                                     </label>
-                                    <p class="text-[11px] text-blue-700 pl-6">Se desmarcado, a aba de amostragem ficará oculta para este usuário.</p>
+
+                                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
+                                        <input type="checkbox" id="chk-allow-seeds" class="h-4 w-4 text-emerald-600 rounded">
+                                        <span><i class="fa-solid fa-wheat-awn text-emerald-600 mr-1"></i>Permitir Módulo de Sementes & Plantio TV</span>
+                                    </label>
+
+                                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
+                                        <input type="checkbox" id="chk-allow-sampling" class="h-4 w-4 text-blue-600 rounded">
+                                        <span><i class="fa-solid fa-vial-circle-check text-blue-600 mr-1"></i>Permitir Módulo de Amostragem de Solo</span>
+                                    </label>
                                 </div>
 
                                 <div class="flex gap-2">
@@ -810,7 +821,7 @@
                                             <th class="p-3">Cliente</th>
                                             <th class="p-3">E-mail Google</th>
                                             <th class="p-3">Fazendas Perm.</th>
-                                            <th class="p-3 text-center">Amostragem</th>
+                                            <th class="p-3 text-center">Módulos</th>
                                             <th class="p-3 text-right">Ações</th>
                                         </tr>
                                     </thead>
@@ -845,7 +856,10 @@
         let mapLeft = null, mapRight = null, vrateMap = null, seedsMap = null;
         let geojsonLayerLeft = null, geojsonLayerRight = null, vrateGeojsonLayer = null, seedsGeojsonLayer = null;
         let tileLayerLeft = null, tileLayerRight = null;
-        let currentUser = null, currentUserRole = "client", currentUserAllowedFarms = ["all"], canAccessSampling = false;
+        
+        let currentUser = null, currentUserRole = "client", currentUserAllowedFarms = [];
+        let canAccessSampling = false, canAccessVRate = false, canAccessSeeds = false;
+        
         let farmsDatabase = {}, usersDatabase = [];
         let savedPrescriptionsDatabase = [];
         let splitPosition = 0.5, isSyncing = false;
@@ -864,6 +878,7 @@
 
         const CULTIVAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#4f46e5', '#059669', '#e11d48'];
 
+        // HELPER PARA SELECIONAR APENAS A SAFRA MAIS RECENTE EM TELAS DE TAXA VARIÁVEL E SEMENTES
         function getLatestSafraGeoJSON(fullGeoJSON) {
             if (!fullGeoJSON || !fullGeoJSON.features || !fullGeoJSON.features.length) return fullGeoJSON;
             
@@ -909,21 +924,25 @@
             } catch (e) { console.error(e); }
         }
 
+        // TRAVA RIGOROSA DE SEGURANÇA POR E-MAIL E MÓDULOS
         async function checkUserAuthorization() {
             if (!currentUser) return;
             const userEmail = currentUser.email.toLowerCase();
             const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
 
             canAccessSampling = false;
+            canAccessVRate = false;
+            canAccessSeeds = false;
 
+            // REGRA MASTER ADMIN: Acesso Total Automático
             if (adminEmails.includes(userEmail)) { 
                 currentUserRole = "admin"; 
+                currentUserAllowedFarms = ["all"];
                 canAccessSampling = true;
-            } else if (userEmail.endsWith("@origens.agr.br")) { 
-                currentUserRole = "client"; 
-                currentUserAllowedFarms = ["all"]; 
-                canAccessSampling = true;
+                canAccessVRate = true;
+                canAccessSeeds = true;
             } else {
+                // REGRA CLIENTES E CONTAS ORIGENS: Responde 100% às permissões gravadas pelo Admin no Firestore
                 try {
                     const userDoc = await db.collection("users").doc(userEmail).get();
                     if (userDoc.exists) {
@@ -931,6 +950,8 @@
                         currentUserRole = userData.role || "client";
                         currentUserAllowedFarms = userData.farms || [];
                         canAccessSampling = !!userData.allowSampling;
+                        canAccessVRate = !!userData.allowVRate;
+                        canAccessSeeds = !!userData.allowSeeds;
                     } else { 
                         alert("Acesso restrito à equipe Origens ou usuários autorizados pelo administrador!"); 
                         await auth.signOut(); 
@@ -957,16 +978,21 @@
                 roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
                 document.getElementById('admin-only-menu').classList.remove('hidden');
                 document.getElementById('upload-box-admin').classList.remove('hidden');
+            } else {
+                roleBadge.innerText = "Modo Leitura";
+                roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300";
+                document.getElementById('admin-only-menu').classList.add('hidden');
+                document.getElementById('upload-box-admin').classList.add('hidden');
             }
 
+            // Exibir ou Ocultar botões dos Módulos conforme Permissões de Acesso
+            const tabVrateBtn = document.getElementById('tab-vrate');
+            const tabSeedsBtn = document.getElementById('tab-seeds');
             const tabSamplingBtn = document.getElementById('tab-sampling');
-            if (tabSamplingBtn) {
-                if (canAccessSampling) {
-                    tabSamplingBtn.classList.remove('hidden');
-                } else {
-                    tabSamplingBtn.classList.add('hidden');
-                }
-            }
+
+            if (tabVrateBtn) canAccessVRate ? tabVrateBtn.classList.remove('hidden') : tabVrateBtn.classList.add('hidden');
+            if (tabSeedsBtn) canAccessSeeds ? tabSeedsBtn.classList.remove('hidden') : tabSeedsBtn.classList.add('hidden');
+            if (tabSamplingBtn) canAccessSampling ? tabSamplingBtn.classList.remove('hidden') : tabSamplingBtn.classList.add('hidden');
 
             await loadCloudData();
             initLeafletMap();
@@ -1222,17 +1248,20 @@
                 if (u.farms && !u.farms.includes('all')) {
                     farmNames = u.farms.map(fKey => farmsDatabase[fKey] ? farmsDatabase[fKey].name : fKey).join(', ');
                 }
-                const hasSampling = !!u.allowSampling;
-                const samplingBadge = hasSampling 
-                    ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Liberado</span>`
-                    : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Bloqueado</span>`;
+                
+                let modBadges = [];
+                if (u.allowVRate) modBadges.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800">Adubação</span>');
+                if (u.allowSeeds) modBadges.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">Sementes</span>');
+                if (u.allowSampling) modBadges.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800">Amostragem</span>');
+                
+                if (!modBadges.length) modBadges.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-500">Só GIS</span>');
 
                 return `
                     <tr class="hover:bg-slate-50">
                         <td class="p-3 font-bold">${u.name || 'Cliente'}</td>
                         <td class="p-3 font-mono text-slate-600">${u.email}</td>
                         <td class="p-3 text-slate-500 font-semibold">${farmNames}</td>
-                        <td class="p-3 text-center">${samplingBadge}</td>
+                        <td class="p-3 text-center flex flex-wrap gap-1 justify-center">${modBadges.join('')}</td>
                         <td class="p-3 text-right space-x-2">
                             <button onclick="editUser('${u.email}')" class="text-blue-600 hover:text-blue-800 font-bold" title="Editar Usuário"><i class="fa-solid fa-pen-to-square"></i></button>
                             <button onclick="deleteUser('${u.email}')" class="text-red-600 hover:text-red-800 font-bold" title="Excluir Permissão"><i class="fa-solid fa-trash"></i></button>
@@ -1345,6 +1374,8 @@
                 chk.checked = isAll || (user.farms && user.farms.includes(chk.value));
             });
 
+            document.getElementById('chk-allow-vrate').checked = !!user.allowVRate;
+            document.getElementById('chk-allow-seeds').checked = !!user.allowSeeds;
             document.getElementById('chk-allow-sampling').checked = !!user.allowSampling;
 
             document.getElementById('btn-save-user').innerText = "Atualizar Permissões do Cliente";
@@ -1361,6 +1392,8 @@
             if (chkAll) chkAll.checked = false;
             toggleAllFarmsCheckboxes(chkAll);
 
+            document.getElementById('chk-allow-vrate').checked = false;
+            document.getElementById('chk-allow-seeds').checked = false;
             document.getElementById('chk-allow-sampling').checked = false;
 
             document.getElementById('btn-save-user').innerText = "Autorizar E-mail Google";
@@ -1382,6 +1415,9 @@
             const emailInput = document.getElementById('new-email');
             const chkAll = document.getElementById('chk-farm-all');
             const chkItems = document.querySelectorAll('.chk-farm-item:checked');
+            
+            const allowVRate = document.getElementById('chk-allow-vrate').checked;
+            const allowSeeds = document.getElementById('chk-allow-seeds').checked;
             const allowSampling = document.getElementById('chk-allow-sampling').checked;
 
             const name = nameInput.value.trim();
@@ -1404,7 +1440,14 @@
                 return false;
             }
 
-            const userObj = { name: name, role: 'client', farms: selectedFarms, allowSampling: allowSampling };
+            const userObj = { 
+                name: name, 
+                role: 'client', 
+                farms: selectedFarms, 
+                allowVRate: allowVRate, 
+                allowSeeds: allowSeeds, 
+                allowSampling: allowSampling 
+            };
 
             try {
                 await db.collection("users").doc(email).set(userObj, { merge: true });
@@ -1502,6 +1545,14 @@
         }
 
         function switchTab(tab) {
+            if (tab === 'vrate' && !canAccessVRate) {
+                alert("Você não possui permissão de acesso ao Módulo de Taxa Variável & Adubação.");
+                return;
+            }
+            if (tab === 'seeds' && !canAccessSeeds) {
+                alert("Você não possui permissão de acesso ao Módulo de Sementes & Plantio.");
+                return;
+            }
             if (tab === 'sampling' && !canAccessSampling) {
                 alert("Você não possui permissão de acesso ao Módulo de Amostragem de Solo.");
                 return;
