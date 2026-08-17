@@ -178,7 +178,7 @@
                                 <div id="container-talhao-checkboxes" class="max-h-40 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-2 space-y-1 text-xs"></div>
                             </div>
 
-                            <!-- NOVA SEÇÃO: HISTÓRICO DE PRESCRIÇÕES SALVAS NA SAFRA -->
+                            <!-- HISTÓRICO DE PRESCRIÇÕES SALVAS NA SAFRA -->
                             <div class="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-2">
                                 <span class="text-xs font-extrabold text-indigo-900 uppercase block"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Histórico de Prescrições Salvas</span>
                                 <div id="container-saved-maps" class="max-h-36 overflow-y-auto space-y-1.5 text-xs">
@@ -864,7 +864,6 @@
 
         const CULTIVAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#4f46e5', '#059669', '#e11d48'];
 
-        // HELPER PARA SELECIONAR APENAS A SAFRA MAIS RECENTE EM TELAS DE TAXA VARIÁVEL E SEMENTES
         function getLatestSafraGeoJSON(fullGeoJSON) {
             if (!fullGeoJSON || !fullGeoJSON.features || !fullGeoJSON.features.length) return fullGeoJSON;
             
@@ -910,7 +909,6 @@
             } catch (e) { console.error(e); }
         }
 
-        // TRAVA RIGOROSA DE SEGURANÇA POR E-MAIL E MÓDULOS
         async function checkUserAuthorization() {
             if (!currentUser) return;
             const userEmail = currentUser.email.toLowerCase();
@@ -961,7 +959,6 @@
                 document.getElementById('upload-box-admin').classList.remove('hidden');
             }
 
-            // Exibir ou ocultar o botão do módulo de Amostragem
             const tabSamplingBtn = document.getElementById('tab-sampling');
             if (tabSamplingBtn) {
                 if (canAccessSampling) {
@@ -1013,7 +1010,6 @@
             return res;
         }
 
-        // TRATAMENTO DA PONTUAÇÃO BRASILEIRA (PONTO DE MILHAR E VÍRGULA DECIMAL)
         function parseNumber(val) {
             if (val === null || val === undefined || val === '') return null;
             if (typeof val === 'number') return isNaN(val) ? null : val;
@@ -1188,7 +1184,6 @@
                     usersDatabase.push({ email: doc.id, ...doc.data() });
                 });
 
-                // CARREGAR HISTÓRICO DE MAPAS E PRESCRIÇÕES SALVAS DA NUVEM
                 try {
                     const prescrSnap = await db.collection("prescriptions").orderBy("createdAt", "desc").get();
                     savedPrescriptionsDatabase = [];
@@ -1247,7 +1242,6 @@
             }).join('');
         }
 
-        // EDIÇÃO E CRIAÇÃO DE FAZENDAS
         function editFarm(key) {
             const farm = farmsDatabase[key];
             if (!farm) return;
@@ -1333,7 +1327,6 @@
             return false;
         }
 
-        // EDIÇÃO E CRIAÇÃO DE USUÁRIOS
         function editUser(email) {
             const user = usersDatabase.find(u => u.email === email);
             if (!user) return;
@@ -2043,11 +2036,9 @@
 
             const buildLayer = (depthKey) => L.geoJSON(currentGeoJSON, {
                 filter: f => {
-                    // Filtra por talhão
                     if (selectedTalhoes.length && !selectedTalhoes.includes(String(f.properties.Talhao))) {
                         return false;
                     }
-                    // Filtra por Safra: Só exibe o polígono no mapa se ele tiver dados cadastrados para as safras selecionadas
                     if (selectedSafras && selectedSafras.length) {
                         const featureSafra = f.properties.safra_origem || extractSafra(f.properties);
                         const hasHistorico = f.properties && f.properties.safras_historico && selectedSafras.some(s => f.properties.safras_historico[s] && f.properties.safras_historico[s][depthKey]);
@@ -2104,10 +2095,15 @@
                 geojsonLayerLeft = buildLayer(depth).addTo(mapLeft);
             }
 
-            if (geojsonLayerLeft && geojsonLayerLeft.getBounds().isValid()) {
-                mapLeft.fitBounds(geojsonLayerLeft.getBounds());
-                if (mode === 'sidebyside' && mapRight) mapRight.fitBounds(geojsonLayerLeft.getBounds());
-            }
+            // CORREÇÃO DA LOCALIZAÇÃO AUTOMÁTICA DA FAZENDA NO MAPA
+            setTimeout(() => {
+                if (geojsonLayerLeft && geojsonLayerLeft.getBounds().isValid()) {
+                    mapLeft.fitBounds(geojsonLayerLeft.getBounds(), { padding: [20, 20], maxZoom: 16 });
+                    if (mode === 'sidebyside' && mapRight) {
+                        mapRight.fitBounds(geojsonLayerLeft.getBounds(), { padding: [20, 20], maxZoom: 16 });
+                    }
+                }
+            }, 50);
 
             const hasValidData = currentGeoJSON.features.some(f => {
                 const val = getFeatureDepthData(f, depth, selectedSafras)[param];
@@ -2147,7 +2143,6 @@
             const farmObj = farmsDatabase[farmKey];
             if (!farmObj || !farmObj.geojson) return;
 
-            // CARREGA APENAS A SAFRA MAIS RECENTE PARA NÃO SOBREPOR PERÍMETROS
             vrateCustomGeoJSON = getLatestSafraGeoJSON(farmObj.geojson);
 
             if (vrateGeojsonLayer) vrateMap.removeLayer(vrateGeojsonLayer);
@@ -2156,7 +2151,11 @@
                 style: { fillColor: '#cbd5e1', fillOpacity: 0.4, color: '#2563eb', weight: 1.5 }
             }).addTo(vrateMap);
 
-            if (vrateGeojsonLayer.getBounds().isValid()) vrateMap.fitBounds(vrateGeojsonLayer.getBounds());
+            setTimeout(() => {
+                if (vrateGeojsonLayer.getBounds().isValid()) {
+                    vrateMap.fitBounds(vrateGeojsonLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
+                }
+            }, 50);
         }
 
         function vrateUpdateMap() {
@@ -2236,7 +2235,11 @@
                 }
             }).addTo(vrateMap);
 
-            if (vrateGeojsonLayer.getBounds().isValid()) vrateMap.fitBounds(vrateGeojsonLayer.getBounds());
+            setTimeout(() => {
+                if (vrateGeojsonLayer.getBounds().isValid()) {
+                    vrateMap.fitBounds(vrateGeojsonLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
+                }
+            }, 50);
         }
 
         function processVRateExcel() {
@@ -2357,7 +2360,6 @@
             }
         }
 
-        // SALVAR MAPA DE TAXA VARIÁVEL & ADUBAÇÃO NA NUVEM FIRESTORE
         async function saveVRateMapToPlatform() {
             if (!vrateProcessedData.length) {
                 alert("Gere o mapa de prescrição primeiro antes de salvar na plataforma!");
@@ -2368,7 +2370,6 @@
             const product = document.getElementById('vrate-product').value;
             const unit = document.getElementById('vrate-unit').value;
 
-            // Identificar a Safra Ativa
             let activeSafra = '2026';
             if (vrateCustomGeoJSON && vrateCustomGeoJSON.features && vrateCustomGeoJSON.features.length) {
                 const s = extractSafra(vrateCustomGeoJSON.features[0].properties);
@@ -2418,7 +2419,6 @@
             const farmObj = farmsDatabase[farmKey];
             if (!farmObj || !farmObj.geojson) return;
 
-            // CARREGA APENAS A SAFRA MAIS RECENTE PARA NÃO SOBREPOR PERÍMETROS
             seedsCustomGeoJSON = getLatestSafraGeoJSON(farmObj.geojson);
 
             if (seedsGeojsonLayer) seedsMap.removeLayer(seedsGeojsonLayer);
@@ -2427,7 +2427,11 @@
                 style: { fillColor: '#cbd5e1', fillOpacity: 0.4, color: '#16a34a', weight: 1.5 }
             }).addTo(seedsMap);
 
-            if (seedsGeojsonLayer.getBounds().isValid()) seedsMap.fitBounds(seedsGeojsonLayer.getBounds());
+            setTimeout(() => {
+                if (seedsGeojsonLayer.getBounds().isValid()) {
+                    seedsMap.fitBounds(seedsGeojsonLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
+                }
+            }, 50);
         }
 
         function seedsUpdateMap() {
@@ -2519,9 +2523,12 @@
                 }
             }).addTo(seedsMap);
 
-            if (seedsGeojsonLayer.getBounds().isValid()) seedsMap.fitBounds(seedsGeojsonLayer.getBounds());
+            setTimeout(() => {
+                if (seedsGeojsonLayer.getBounds().isValid()) {
+                    seedsMap.fitBounds(seedsGeojsonLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
+                }
+            }, 50);
 
-            // Montar Legenda
             const legendTitle = document.getElementById('seeds-legend-title');
             const legendItems = document.getElementById('seeds-legend-items');
 
@@ -2548,7 +2555,6 @@
             }
         }
 
-        // LEITURA E PROCESSAMENTO INDEPENDENTE DE PLANILHAS (DOSES DE SEMENTES E/OU CULTIVARES)
         function processSeedsExcel() {
             const farmKey = document.getElementById('seeds-sel-farm').value;
             const fileInput = document.getElementById('seeds-excel-file');
@@ -2569,7 +2575,6 @@
             const executeSeedsLogic = (targetGeoJSON) => {
                 seedsCustomGeoJSON = targetGeoJSON;
 
-                // 1. Leitura independente da Planilha de Cultivares/Variedades
                 const processCultivarFile = () => {
                     return new Promise((resolve) => {
                         if (hasCultivarFile) {
@@ -2594,7 +2599,6 @@
                     });
                 };
 
-                // 2. Leitura independente da Planilha de Doses
                 const processDosesFile = () => {
                     return new Promise((resolve) => {
                         if (hasDosesFile) {
@@ -2692,7 +2696,6 @@
             }
         }
 
-        // SALVAR MAPA DE SEMENTES / PLANTIO NA NUVEM FIRESTORE
         async function saveSeedsMapToPlatform(pdfMode = 'dose') {
             if (!seedsProcessedData.length && !Object.keys(seedsCultivarMap).length) {
                 alert("Gere o mapa de prescrição de sementes primeiro antes de salvar na plataforma!");
@@ -2734,7 +2737,6 @@
             }
         }
 
-        // LAUDO PDF DA PRESCRIÇÃO DE SEMENTES OU CULTIVARES INDEPENDENTE
         function drawSeedsCanvas(farmInfo, crop, unit, pdfMode = 'dose') {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -2858,7 +2860,6 @@
                 }
             }
 
-            // LEGENDA NO PDF
             const legX = 970, legY = 110;
             const legW = 210;
 
@@ -2920,7 +2921,6 @@
                 });
             }
 
-            // MONTAGEM DA TABELA RESUMO NO PDF
             const tblX = 1195, tblY = 110;
             const tblW = 365;
 
@@ -3064,7 +3064,6 @@
             link.click();
         }
 
-        // DESENHAR CANVAS DO LAUDO DA FERTILIDADE DO SOLO (PDF)
         function drawCanvasForParam(param, depthConfig, farmInfo, rules) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -3302,7 +3301,6 @@
             if (batchBtnText) batchBtnText.innerText = "Exportar Lote de PDFs (.ZIP)";
         }
 
-        // CONVERSOR GERADOR DA COLEÇÃO SHAPEFILE COMPLETA (.SHP, .SHX, .DBF, .PRJ, .CPG)
         function generateSHPFiles(geojson, baseName) {
             let prjContent = `GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]`;
             let cpgContent = `UTF-8`;
@@ -3318,9 +3316,6 @@
             };
         }
 
-        // =========================================================================
-        // FUNÇÕES DE EXPORTAÇÃO DO MÓDULO DE TAXA VARIÁVEL & ADUBAÇÃO
-        // =========================================================================
         function drawVRateCanvas(farmInfo, product, unit) {
             const canvas = document.getElementById('pdf-render-canvas');
             const ctx = canvas.getContext('2d');
@@ -3467,7 +3462,6 @@
                 }
             }
 
-            // LEGENDA E RESUMO NO PDF
             const legX = 970, legY = 110;
             const legW = 210;
             const maxVisibleDoses = Math.min(vrateUniqueDoses.length, 6);
@@ -3500,7 +3494,6 @@
                 currY += 26;
             });
 
-            // CAIXA RESUMO INSUMO
             const resY = legY + legH + 20;
             const resH = 175;
 
@@ -3552,7 +3545,6 @@
 
             ctx.textAlign = "left";
 
-            // TABELA RESUMO POR CAMPO
             const tblX = 1195, tblY = 110;
             const tblW = 365;
 
@@ -3655,7 +3647,6 @@
             pdf.save(`Laudo_Prescricao_${product}_${farmNameStr}.pdf`);
         }
 
-        // CORREÇÃO DA EXPORTAÇÃO PARA MONITORES (.ZIP) DE TAXA VARIÁVEL
         async function exportForMonitor() {
             if (!vrateProcessedData.length) { 
                 alert('Processe primeiro a planilha de prescrição para exportar aos monitores!'); 
@@ -3707,7 +3698,6 @@
             link.click();
         }
 
-        // CORREÇÃO DA EXPORTAÇÃO DO RESUMO EM EXCEL (.XLSX)
         function exportVRateExcelSummary() {
             if (!vrateProcessedData || !vrateProcessedData.length) { 
                 alert('Nenhum dado de taxa variável gerado. Gerar a prescrição primeiro.'); 
@@ -3718,7 +3708,6 @@
                 const unit = document.getElementById('vrate-unit').value;
                 const unitStr = unit === 'kg_ha' ? 'kg/ha' : 't/ha';
 
-                // Formatar dados em colunas limpas para a planilha
                 const exportData = vrateProcessedData.map(item => ({
                     "Talhão": item.talhao,
                     "Subdivisão / Gleba": item.subs,
@@ -3742,7 +3731,6 @@
         // =========================================================================
         let samplingRawRows = [];
 
-        // URL pública da aba Relatório exportada como CSV da sua planilha
         const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1txbBbeQrZEjEP2iJae0Wr66Q0977r4nfiQcDNx1WoZ4/export?format=csv&gid=819798624";
 
         async function fetchSamplingData() {
@@ -3770,13 +3758,11 @@
                 const line = lines[i].trim();
                 if (!line) continue;
 
-                // Parser simples respeitando aspas de CSV
                 const cols = line.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(c => c.replace(/^"|"$/g, '').trim());
 
                 const solicitante = cols[0] || '';
                 const fazenda = cols[1] || '';
 
-                // LEITURA DIRETA DO CABEÇALHO CONSOLIDADO (LINHA 2 DA PLANILHA)
                 if (i === 1 || solicitante.toUpperCase().includes('CONFERE') || (cols[2] && cols[2].toUpperCase().includes('A COLETAR'))) {
                     let haToColHeaderStr = cols[2] || '0';
                     let haColHeaderStr = cols[3] || '0';
@@ -3784,7 +3770,6 @@
                     let pctColHeaderStr = cols[5] || '0%';
                     let pctColHeaderNum = parseFloat(pctColHeaderStr.replace('%', '').replace(',', '.')) || 0;
 
-                    // Salva na memória para restaurar quando o filtro for "Todos os Solicitantes"
                     window.samplingHeaderTotals = {
                         haToColHeaderStr,
                         haColHeaderStr,
@@ -3830,7 +3815,6 @@
                 }
             }
 
-            // Atualizar Filtro de Solicitantes
             const selSol = document.getElementById('sampling-filter-solicitante');
             if (selSol) {
                 let optionsHtml = `<option value="all">Todos os Solicitantes (${solicitantesSet.size})</option>`;
@@ -3852,7 +3836,6 @@
             const searchTerm = (document.getElementById('sampling-search')?.value || '').toLowerCase();
             const selectedSol = document.getElementById('sampling-filter-solicitante')?.value || 'all';
 
-            // 1. Filtrar registros conforme a busca e o solicitante selecionado
             const filtered = samplingRawRows.filter(r => {
                 const matchesSearch = r.fazenda.toLowerCase().includes(searchTerm) || r.solicitante.toLowerCase().includes(searchTerm);
                 const matchesSol = selectedSol === 'all' || r.solicitante === selectedSol;
@@ -3862,7 +3845,6 @@
             if (!filtered.length) {
                 tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 font-semibold italic">Nenhum registro encontrado para os filtros selecionados.</td></tr>`;
                 
-                // Se não houver registros no filtro, zera os KPIs do topo
                 if (selectedSol !== 'all' || searchTerm !== '') {
                     document.getElementById('kpi-ha-total').innerText = `0,00 ha`;
                     document.getElementById('kpi-ha-coletados').innerText = `0,00 ha`;
@@ -3876,7 +3858,6 @@
                 return;
             }
 
-            // 2. Se houver filtro ativo (solicitante específico ou busca), calcula o SUBTOTAL
             if (selectedSol !== 'all' || searchTerm !== '') {
                 let subHaToCollect = 0;
                 let subHaCollected = 0;
@@ -3890,19 +3871,16 @@
 
                 let subPctCollected = subHaToCollect > 0 ? ((subHaCollected / subHaToCollect) * 100) : 0;
 
-                // Atualiza os Cards de KPI com o SUBTOTAL do filtro
                 document.getElementById('kpi-ha-total').innerText = `${subHaToCollect.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
                 document.getElementById('kpi-ha-coletados').innerText = `${subHaCollected.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
                 document.getElementById('kpi-ha-pendentes').innerText = `${subHaPending.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ha`;
                 document.getElementById('kpi-pct-geral').innerText = `${subPctCollected.toFixed(2).replace('.', ',')}%`;
 
-                // Atualiza a barra de progresso com o % do filtro
                 const progressBar = document.getElementById('sampling-progress-bar');
                 const progressText = document.getElementById('sampling-progress-text');
                 if (progressBar) progressBar.style.width = `${Math.min(subPctCollected, 100)}%`;
                 if (progressText) progressText.innerText = `${subPctCollected.toFixed(2).replace('.', ',')}% Concluído (Filtro)`;
             } else {
-                // Se estiver em "Todos os Solicitantes" sem busca, restaura os Totais Gerais do Cabeçalho da Planilha
                 if (window.samplingHeaderTotals) {
                     document.getElementById('kpi-ha-total').innerText = `${window.samplingHeaderTotals.haToColHeaderStr} ha`;
                     document.getElementById('kpi-ha-coletados').innerText = `${window.samplingHeaderTotals.haColHeaderStr} ha`;
@@ -3916,7 +3894,6 @@
                 }
             }
 
-            // 3. Renderiza as linhas da tabela
             tbody.innerHTML = filtered.map((r) => {
                 let pctColNum = parseFloat(r.pctColetadosStr.replace('%', '').replace(',', '.')) || 0;
                 let badgeColor = 'bg-slate-100 text-slate-700';
@@ -3944,7 +3921,6 @@
             }).join('');
         }
 
-        // SALVAMENTO E FUSÃO ACUMULATIVA DE SHAPEFILES POR SAFRA
         function processUploadedFiles() {
             if (currentUserRole !== 'admin') { alert("Apenas Administrador pode enviar arquivos."); return; }
             const farmKey = document.getElementById('sel-farm').value;
@@ -3998,18 +3974,15 @@
                 await parseExcel(excel1020, 'd10_20');
                 await parseExcel(excel2040, 'd20_40');
 
-                // ACUMULAR RECURSIVAMENTE SHAPEFILES/GEOMETRIAS DE DIFERENTES SAFRAS
                 let combinedFeatures = [];
                 let safraTarget = uploadSafraYear !== 'auto' ? uploadSafraYear : '2026';
 
-                // Marcar polígonos da nova safra
                 newSafraGeoJSON.features.forEach(f => {
                     f.properties = f.properties || {};
                     f.properties.safra_origem = safraTarget;
                     combinedFeatures.push(f);
                 });
 
-                // Preservar polígonos de safras anteriores enviadas no passado
                 if (currentFarm.geojson && currentFarm.geojson.features) {
                     currentFarm.geojson.features.forEach(oldF => {
                         let oldSafra = oldF.properties ? (oldF.properties.safra_origem || extractSafra(oldF.properties)) : null;
