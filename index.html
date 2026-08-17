@@ -178,6 +178,20 @@
                                 <div id="container-talhao-checkboxes" class="max-h-40 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-2 space-y-1 text-xs"></div>
                             </div>
 
+                            <!-- NOVO MÓDULO: PLANILHA COMPLEMENTAR / RESULTADOS (.XLSX) -->
+                            <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-xl space-y-2">
+                                <span class="text-xs font-extrabold text-blue-900 uppercase block"><i class="fa-solid fa-file-excel mr-1"></i>Planilha Complementar / Resultados</span>
+                                <div id="container-extra-excel" class="space-y-2 text-xs">
+                                    <span class="text-slate-400 italic block text-[11px]">Nenhuma planilha anexada para esta safra.</span>
+                                </div>
+                                <div id="admin-extra-excel-controls" class="pt-1 hidden">
+                                    <input type="file" id="input-extra-excel" accept=".xlsx,.xls,.csv" class="hidden" onchange="uploadExtraExcelFile(this)">
+                                    <button onclick="document.getElementById('input-extra-excel').click()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded-lg text-[11px] shadow transition-all flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-paperclip"></i><span>Anexar / Substituir Planilha (.XLSX)</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- HISTÓRICO DE PRESCRIÇÕES SALVAS NA SAFRA -->
                             <div class="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-2">
                                 <span class="text-xs font-extrabold text-indigo-900 uppercase block"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Histórico de Prescrições Salvas</span>
@@ -862,6 +876,7 @@
         
         let farmsDatabase = {}, usersDatabase = [];
         let savedPrescriptionsDatabase = [];
+        let extraExcelDatabase = [];
         let splitPosition = 0.5, isSyncing = false;
 
         let vrateProcessedData = [];
@@ -878,7 +893,6 @@
 
         const CULTIVAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#4f46e5', '#059669', '#e11d48'];
 
-        // HELPER PARA SELECIONAR APENAS A SAFRA MAIS RECENTE EM TELAS DE TAXA VARIÁVEL E SEMENTES
         function getLatestSafraGeoJSON(fullGeoJSON) {
             if (!fullGeoJSON || !fullGeoJSON.features || !fullGeoJSON.features.length) return fullGeoJSON;
             
@@ -924,7 +938,6 @@
             } catch (e) { console.error(e); }
         }
 
-        // TRAVA RIGOROSA DE SEGURANÇA POR E-MAIL E MÓDULOS
         async function checkUserAuthorization() {
             if (!currentUser) return;
             const userEmail = currentUser.email.toLowerCase();
@@ -934,7 +947,6 @@
             canAccessVRate = false;
             canAccessSeeds = false;
 
-            // REGRA MASTER ADMIN: Acesso Total Automático
             if (adminEmails.includes(userEmail)) { 
                 currentUserRole = "admin"; 
                 currentUserAllowedFarms = ["all"];
@@ -942,7 +954,6 @@
                 canAccessVRate = true;
                 canAccessSeeds = true;
             } else {
-                // REGRA CLIENTES E CONTAS ORIGENS: Responde 100% às permissões gravadas pelo Admin no Firestore
                 try {
                     const userDoc = await db.collection("users").doc(userEmail).get();
                     if (userDoc.exists) {
@@ -973,19 +984,22 @@
             document.getElementById('user-display-email').innerText = currentUser.email;
 
             const roleBadge = document.getElementById('user-display-role');
+            const adminExtraExcelControls = document.getElementById('admin-extra-excel-controls');
+
             if (currentUserRole === 'admin') {
                 roleBadge.innerText = "Modo Edição (Admin)";
                 roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
                 document.getElementById('admin-only-menu').classList.remove('hidden');
                 document.getElementById('upload-box-admin').classList.remove('hidden');
+                if (adminExtraExcelControls) adminExtraExcelControls.classList.remove('hidden');
             } else {
                 roleBadge.innerText = "Modo Leitura";
                 roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300";
                 document.getElementById('admin-only-menu').classList.add('hidden');
                 document.getElementById('upload-box-admin').classList.add('hidden');
+                if (adminExtraExcelControls) adminExtraExcelControls.classList.add('hidden');
             }
 
-            // Exibir ou Ocultar botões dos Módulos conforme Permissões de Acesso
             const tabVrateBtn = document.getElementById('tab-vrate');
             const tabSeedsBtn = document.getElementById('tab-seeds');
             const tabSamplingBtn = document.getElementById('tab-sampling');
@@ -1217,6 +1231,15 @@
                         savedPrescriptionsDatabase.push({ id: pDoc.id, ...pDoc.data() });
                     });
                 } catch (ePrescr) { console.warn("Aviso ao carregar prescrições salvas:", ePrescr); }
+
+                // CARREGAR PLANILHAS COMPLEMENTARES/EXTRAS DA NUVEM
+                try {
+                    const extraSnap = await db.collection("extra_excels").get();
+                    extraExcelDatabase = [];
+                    extraSnap.forEach(eDoc => {
+                        extraExcelDatabase.push({ id: eDoc.id, ...eDoc.data() });
+                    });
+                } catch (eExtra) { console.warn("Aviso ao carregar planilhas extras:", eExtra); }
 
                 populateFarmSelector();
                 renderAdminTables();
@@ -1660,6 +1683,7 @@
             if (!selectedFarmKey || !farmsDatabase[selectedFarmKey]) {
                 container.innerHTML = '<span class="text-slate-400 italic">Sem safras salvas</span>';
                 renderSavedPrescriptionsList();
+                renderExtraExcelList();
                 return;
             }
 
@@ -1682,17 +1706,19 @@
             if (!sortedSafras.length) {
                 container.innerHTML = '<span class="text-slate-400 italic">Sem safras salvas</span>';
                 renderSavedPrescriptionsList();
+                renderExtraExcelList();
                 return;
             }
 
             container.innerHTML = sortedSafras.map((s, idx) => `
                 <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" name="chk-safra-item" value="${s}" ${idx === 0 ? 'checked' : ''} onchange="updateGISMap(); populateTalhaoSelector(); renderSavedPrescriptionsList();" class="chk-safra-item h-3.5 w-3.5 text-origens-green rounded">
+                    <input type="checkbox" name="chk-safra-item" value="${s}" ${idx === 0 ? 'checked' : ''} onchange="updateGISMap(); populateTalhaoSelector(); renderSavedPrescriptionsList(); renderExtraExcelList();" class="chk-safra-item h-3.5 w-3.5 text-origens-green rounded">
                     <span>Safra ${s}</span>
                 </label>
             `).join('');
 
             renderSavedPrescriptionsList();
+            renderExtraExcelList();
         }
 
         function populateTalhaoSelector() {
@@ -1763,6 +1789,7 @@
             items.forEach(i => i.checked = anyUnchecked);
             populateTalhaoSelector();
             renderSavedPrescriptionsList();
+            renderExtraExcelList();
             updateGISMap();
         }
 
@@ -1787,7 +1814,114 @@
             return Array.from(checked).map(i => i.value);
         }
 
-        // EXIBIR HISTÓRICO DE MAPAS E PRESCRIÇÕES SALVAS NA SAFRA ATIVA
+        // =========================================================================
+        // MÓDULO ISOLADO: GESTÃO DA PLANILHA COMPLEMENTAR / RESULTADOS (.XLSX)
+        // =========================================================================
+        function renderExtraExcelList() {
+            const container = document.getElementById('container-extra-excel');
+            if (!container) return;
+
+            const selectedFarmKey = document.getElementById('sel-farm')?.value;
+            const selectedSafras = getSelectedSafras();
+
+            if (!selectedFarmKey || !selectedSafras.length) {
+                container.innerHTML = `<span class="text-slate-400 italic block text-[11px]">Selecione uma fazenda e safra.</span>`;
+                return;
+            }
+
+            const activeSafra = selectedSafras[0];
+            const foundExtra = extraExcelDatabase.find(ex => ex.farmId === selectedFarmKey && String(ex.safra) === String(activeSafra));
+
+            if (!foundExtra) {
+                container.innerHTML = `<span class="text-slate-400 italic block text-[11px]">Nenhuma planilha anexada para a Safra ${activeSafra}.</span>`;
+                return;
+            }
+
+            const isAdmin = currentUserRole === 'admin';
+
+            container.innerHTML = `
+                <div class="bg-white p-2 rounded-lg border border-blue-200 shadow-sm flex items-center justify-between gap-1">
+                    <div class="overflow-hidden">
+                        <span class="font-bold block text-blue-900 truncate text-[11px]">${foundExtra.fileName}</span>
+                        <span class="text-[10px] text-slate-500 block">Safra ${foundExtra.safra} | ${new Date(foundExtra.createdAt).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="downloadExtraExcel('${foundExtra.id}')" class="text-emerald-700 hover:text-emerald-900 p-1 font-bold text-xs" title="Baixar Planilha Original (.XLSX)"><i class="fa-solid fa-file-excel mr-1"></i>Baixar</button>
+                        ${isAdmin ? `<button onclick="deleteExtraExcel('${foundExtra.id}')" class="text-red-500 hover:text-red-700 p-1 text-xs" title="Excluir Planilha"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function uploadExtraExcelFile(inputEl) {
+            if (!inputEl.files || !inputEl.files[0]) return;
+            const file = inputEl.files[0];
+
+            const selectedFarmKey = document.getElementById('sel-farm')?.value;
+            const selectedSafras = getSelectedSafras();
+
+            if (!selectedFarmKey || !selectedSafras.length) {
+                alert("Selecione uma fazenda e pelo menos uma safra ativa no menu antes de anexar a planilha!");
+                inputEl.value = '';
+                return;
+            }
+
+            const activeSafra = selectedSafras[0];
+            const farmInfo = farmsDatabase[selectedFarmKey];
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Content = e.target.result;
+
+                const docId = `${selectedFarmKey}_${activeSafra}_extra`;
+
+                const payload = {
+                    farmId: selectedFarmKey,
+                    farmName: farmInfo ? farmInfo.name : 'Fazenda',
+                    safra: activeSafra,
+                    fileName: file.name,
+                    fileData: base64Content,
+                    createdAt: new Date().toISOString()
+                };
+
+                try {
+                    await db.collection("extra_excels").doc(docId).set(payload, { merge: true });
+                    await loadCloudData();
+                    alert(`Planilha complementar "${file.name}" anexada com sucesso para a Safra ${activeSafra}!`);
+                    inputEl.value = '';
+                } catch (err) {
+                    console.error("Erro ao enviar planilha complementar:", err);
+                    alert("Falha ao salvar planilha na nuvem: " + err.message);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function downloadExtraExcel(docId) {
+            const foundExtra = extraExcelDatabase.find(ex => ex.id === docId);
+            if (!foundExtra || !foundExtra.fileData) {
+                alert("Arquivo da planilha não foi encontrado.");
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = foundExtra.fileData;
+            link.download = foundExtra.fileName || `Planilha_Complementar_Safra_${foundExtra.safra}.xlsx`;
+            link.click();
+        }
+
+        async function deleteExtraExcel(docId) {
+            if (currentUserRole !== 'admin') return;
+            if (confirm("Deseja realmente excluir esta planilha complementar do sistema?")) {
+                try {
+                    await db.collection("extra_excels").doc(docId).delete();
+                    await loadCloudData();
+                    alert("Planilha excluída com sucesso.");
+                } catch (err) {
+                    alert("Erro ao excluir planilha: " + err.message);
+                }
+            }
+        }
+
         function renderSavedPrescriptionsList() {
             const container = document.getElementById('container-saved-maps');
             if (!container) return;
@@ -2146,7 +2280,6 @@
                 geojsonLayerLeft = buildLayer(depth).addTo(mapLeft);
             }
 
-            // CORREÇÃO DA LOCALIZAÇÃO AUTOMÁTICA DA FAZENDA NO MAPA
             setTimeout(() => {
                 if (geojsonLayerLeft && geojsonLayerLeft.getBounds().isValid()) {
                     mapLeft.fitBounds(geojsonLayerLeft.getBounds(), { padding: [20, 20], maxZoom: 16 });
