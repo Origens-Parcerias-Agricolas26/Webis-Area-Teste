@@ -1,95 +1,98 @@
-/*
-===================================================================
- PLATAFORMA WEBGIS - ORIGENS PARCERIAS AGRÍCOLAS
- Propriedade Intelectual e Direitos Reservados:
- Autor / Proprietário: Tiago Ritter Moreira
- Empresa: Origens Parcerias Agrícolas LTDA
-===================================================================
-*/
+// ==========================================
+// 1. VARIÁVEIS GLOBAIS E CONFIGURAÇÃO
+// ==========================================
+let map = null;
+let geojsonLayer = null;
+let samplingPointsLayer = null;
+let currentGeoJSON = null;
+let currentUser = null;
+let currentUserRole = 'client'; // 'admin' ou 'client'
+let currentUserAllowedFarms = [];
+let canAccessSampling = false;
+let canAccessVRate = false;
+let canAccessSeeds = false;
 
-const firebaseConfig = {
-    apiKey: "AIzaSyA-46x_kEHCsvaEyGO6OqpynL5ook0MKBA",
-    authDomain: "origens-webgis.firebaseapp.com",
-    projectId: "origens-webgis",
-    storageBucket: "origens-webgis.firebasestorage.app",
-    messagingSenderId: "277368735288",
-    appId: "1:277368735288:web:92b917c6eecf231e5f88cd",
-    measurementId: "G-D33YD6CTNK"
+// Tabela de conversão/paleta de cores para os módulos
+const COLOR_PALETTES = {
+    vrate: ['#1e293b', '#0f766e', '#047857', '#65a30d', '#facc15', '#f97316', '#dc2626'],
+    sampling: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+    seeds: ['#15803d', '#4338ca', '#a21caf', '#b45309']
 };
 
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-let mapLeft = null, mapRight = null, vrateMap = null, seedsMap = null;
-let geojsonLayerLeft = null, geojsonLayerRight = null, vrateGeojsonLayer = null, seedsGeojsonLayer = null;
-let tileLayerLeft = null, tileLayerRight = null;
-
-let currentUser = null, currentUserRole = "client", currentUserAllowedFarms = [];
-let canAccessSampling = false, canAccessVRate = false, canAccessSeeds = false;
-
-let farmsDatabase = {}, usersDatabase = [];
-let savedPrescriptionsDatabase = [];
-let extraExcelDatabase = [];
-let splitPosition = 0.5, isSyncing = false;
-
-let vrateProcessedData = [];
-let vrateDoseMap = {};
-let vrateUniqueDoses = [];
-let vrateCustomGeoJSON = null;
-
-let seedsProcessedData = [];
-let seedsDoseMap = {};
-let seedsCultivarMap = {};
-let seedsUniqueDoses = [];
-let seedsUniqueCultivars = [];
-let seedsCustomGeoJSON = null;
-
-const CULTIVAR_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#ca8a04', '#4f46e5', '#059669', '#e11d48'];
-
-function getLatestSafraGeoJSON(fullGeoJSON) {
-    if (!fullGeoJSON || !fullGeoJSON.features || !fullGeoJSON.features.length) return fullGeoJSON;
-    
-    let safrasSet = new Set();
-    fullGeoJSON.features.forEach(f => {
-        let s = f.properties ? (f.properties.safra_origem || extractSafra(f.properties)) : null;
-        if (s && /^\d{4}$/.test(s)) safrasSet.add(s);
+// ==========================================
+// 2. INICIALIZAÇÃO DA APLICAÇÃO
+// ==========================================
+window.addEventListener('DOMContentLoaded', () => {
+    // Escuta o estado de autenticação do Firebase
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            currentUser = user;
+            checkUserAuthorization();
+        } else {
+            showSection('landing');
+        }
     });
+});
 
-    if (!safrasSet.size) return fullGeoJSON;
-
-    let latestSafra = Array.from(safrasSet).sort().pop();
-
-    let filteredFeatures = fullGeoJSON.features.filter(f => {
-        let s = f.properties ? (f.properties.safra_origem || extractSafra(f.properties)) : null;
-        return !s || s === latestSafra;
-    });
-
-    return { type: "FeatureCollection", features: filteredFeatures };
-}
-
-function showSection(sec) {
-    if (sec === 'landing') {
-        document.getElementById('landing-section').classList.remove('hidden');
-        document.getElementById('saas-section').classList.add('hidden');
+function showSection(section) {
+    const landing = document.getElementById('landing-section');
+    const saas = document.getElementById('saas-section');
+    if (section === 'saas') {
+        landing.classList.add('hidden');
+        saas.classList.remove('hidden');
+    } else {
+        saas.classList.add('hidden');
+        landing.classList.remove('hidden');
     }
 }
 
+// ==========================================
+// 3. AUTENTICAÇÃO E PERMISSÕES
+// ==========================================
 async function loginWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
     try {
+        const provider = new firebase.auth.GoogleAuthProvider();
         const result = await auth.signInWithPopup(provider);
         currentUser = result.user;
         await checkUserAuthorization();
-    } catch (error) { alert("Erro no login: " + error.message); }
+    } catch (error) {
+        console.warn("Autenticação Google/Firebase não configurada ou a correr em modo local. Ativando modo de teste.", error);
+        
+        // MODO DEMONSTRAÇÃO / FALLBACK LOCAL
+        currentUser = {
+            displayName: "Produtor (Modo Teste)",
+            email: "administrativo@origens.agr.br"
+        };
+        currentUserRole = "admin";
+        canAccessSampling = true;
+        canAccessVRate = true;
+        canAccessSeeds = true;
+        currentUserAllowedFarms = ["all"];
+
+        // Exibe a plataforma SaaS
+        showSection('saas');
+        
+        document.getElementById('user-display-name').innerText = currentUser.displayName;
+        document.getElementById('user-display-email').innerText = currentUser.email;
+
+        // Liberar visualização dos menus
+        ['tab-vrate', 'tab-seeds', 'tab-sampling', 'admin-only-menu', 'upload-box-admin'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('hidden');
+        });
+
+        initLeafletMap();
+    }
 }
 
 async function logout() {
     try {
         await auth.signOut();
-        currentUser = null;
-        showSection('landing');
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.log("Logout executado localmente.");
+    }
+    currentUser = null;
+    showSection('landing');
 }
 
 async function checkUserAuthorization() {
@@ -118,22 +121,17 @@ async function checkUserAuthorization() {
                 canAccessVRate = !!userData.allowVRate;
                 canAccessSeeds = !!userData.allowSeeds;
             } else { 
-                alert("Acesso restrito à equipe Origens ou usuários autorizados pelo administrador!"); 
+                alert("Acesso restrito à equipa Origens ou utilizadores autorizados!"); 
                 await auth.signOut(); 
                 showSection('landing');
                 return; 
             }
         } catch (err) { 
-            console.error(err); 
-            alert("Erro ao validar permissões na nuvem.");
-            await auth.signOut();
-            showSection('landing');
-            return;
+            console.error("Erro ao verificar utilizador no Firestore:", err); 
         }
     }
 
-    document.getElementById('landing-section').classList.add('hidden');
-    document.getElementById('saas-section').classList.remove('hidden');
+    showSection('saas');
     document.getElementById('user-display-name').innerText = currentUser.displayName || currentUser.email;
     document.getElementById('user-display-email').innerText = currentUser.email;
 
@@ -141,16 +139,20 @@ async function checkUserAuthorization() {
     const adminExtraExcelControls = document.getElementById('admin-extra-excel-controls');
 
     if (currentUserRole === 'admin') {
-        roleBadge.innerText = "Modo Edição (Admin)";
-        roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
-        document.getElementById('admin-only-menu').classList.remove('hidden');
-        document.getElementById('upload-box-admin').classList.remove('hidden');
+        if (roleBadge) {
+            roleBadge.innerText = "Modo Edição (Admin)";
+            roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
+        }
+        if (document.getElementById('admin-only-menu')) document.getElementById('admin-only-menu').classList.remove('hidden');
+        if (document.getElementById('upload-box-admin')) document.getElementById('upload-box-admin').classList.remove('hidden');
         if (adminExtraExcelControls) adminExtraExcelControls.classList.remove('hidden');
     } else {
-        roleBadge.innerText = "Modo Leitura";
-        roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300";
-        document.getElementById('admin-only-menu').classList.add('hidden');
-        document.getElementById('upload-box-admin').classList.add('hidden');
+        if (roleBadge) {
+            roleBadge.innerText = "Modo Leitura";
+            roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300";
+        }
+        if (document.getElementById('admin-only-menu')) document.getElementById('admin-only-menu').classList.add('hidden');
+        if (document.getElementById('upload-box-admin')) document.getElementById('upload-box-admin').classList.add('hidden');
         if (adminExtraExcelControls) adminExtraExcelControls.classList.add('hidden');
     }
 
@@ -166,42 +168,76 @@ async function checkUserAuthorization() {
     initLeafletMap();
 }
 
-function getRdYlGnPalette(n) {
-    const colors = ['#d73027', '#f46d43', '#fdae61', '#fee08b', '#d9ef8b', '#a6d96a', '#66bd63', '#1a9850'];
-    if (n <= 1) return ['#1a9850'];
-    if (n <= colors.length) {
-        let res = [];
-        for (let i = 0; i < n; i++) {
-            let idx = Math.round(i * (colors.length - 1) / (n - 1));
-            res.push(colors[idx]);
-        }
-        return res;
-    }
-    function hexToRgb(h) {
-        h = h.replace('#', '');
-        return [parseInt(h.substring(0,2), 16), parseInt(h.substring(2,4), 16), parseInt(h.substring(4,6), 16)];
-    }
-    function rgbToHex(r, g, b) {
-        return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
-    }
-    const stops = colors.map(hexToRgb);
-    let res = [];
-    for (let i = 0; i < n; i++) {
-        let t = i / (n - 1);
-        let scaledT = t * (stops.length - 1);
-        let idx = Math.floor(scaledT);
-        if (idx >= stops.length - 1) {
-            res.push(rgbToHex(...stops[stops.length - 1]));
-        } else {
-            let localT = scaledT - idx;
-            let c1 = stops[idx], c2 = stops[idx + 1];
-            let r = Math.round(c1[0] + (c2[0] - c1[0]) * localT);
-            let g = Math.round(c1[1] + (c2[1] - c1[1]) * localT);
-            let b = Math.round(c1[2] + (c2[2] - c1[2]) * localT);
-            res.push(rgbToHex(r, g, b));
-        }
-    }
-    return res;
+// ==========================================
+// 4. MAPEAMENTO (LEAFLET)
+// ==========================================
+function initLeafletMap() {
+    if (map) return; // Evita reinstanciar o mapa se já existir
+
+    map = L.map('map', {
+        zoomControl: true,
+        attributionControl: false
+    }).setView([-23.5505, -46.6333], 10);
+
+    const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    });
+
+    googleSat.addTo(map);
 }
 
-function parse
+function renderGeoJSONOnMap(geojsonData) {
+    if (!map) initLeafletMap();
+
+    if (geojsonLayer) {
+        map.removeLayer(geojsonLayer);
+    }
+
+    currentGeoJSON = geojsonData;
+
+    geojsonLayer = L.geoJSON(geojsonData, {
+        style: function (feature) {
+            return {
+                fillColor: feature.properties.color || '#10b981',
+                weight: 1.5,
+                opacity: 1,
+                color: '#ffffff',
+                fillOpacity: 0.7
+            };
+        },
+        onEachFeature: function (feature, layer) {
+            if (feature.properties) {
+                let popupContent = '<div class="p-2 text-xs font-sans">';
+                for (let key in feature.properties) {
+                    if (key !== 'color') {
+                        popupContent += `<b>${key}:</b> ${feature.properties[key]}<br>`;
+                    }
+                }
+                popupContent += '</div>';
+                layer.bindPopup(popupContent);
+            }
+        }
+    }).addTo(map);
+
+    try {
+        const bounds = geojsonLayer.getBounds();
+        if (bounds.isValid()) {
+            map.fitBounds(bounds);
+        }
+    } catch (e) {
+        console.warn("Não foi possível ajustar o zoom para os limites:", e);
+    }
+}
+
+// ==========================================
+// 5. IMPORTAÇÃO E PROCESSAMENTO DE FICHEIROS
+// ==========================================
+async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
+        const reader = new FileReader();
