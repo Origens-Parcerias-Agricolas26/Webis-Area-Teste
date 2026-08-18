@@ -952,93 +952,45 @@
         }
 
         async function checkUserAuthorization() {
-    if (!currentUser) return;
-    const userEmail = currentUser.email.toLowerCase();
-    const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
+            if (!currentUser) return;
+            const userEmail = currentUser.email.toLowerCase();
+            const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
 
-    canAccessSampling = false;
-    canAccessVRate = false;
-    canAccessSeeds = false;
+            canAccessSampling = false;
+            canAccessVRate = false;
+            canAccessSeeds = false;
 
-    if (adminEmails.includes(userEmail)) { 
-        currentUserRole = "admin"; 
-        currentUserAllowedFarms = ["all"];
-        canAccessSampling = true;
-        canAccessVRate = true;
-        canAccessSeeds = true;
-    } else {
-        try {
-            const userDoc = await db.collection("users").doc(userEmail).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                currentUserRole = userData.role || "client";
-                currentUserAllowedFarms = userData.farms || [];
-                canAccessSampling = !!userData.allowSampling;
-                canAccessVRate = !!userData.allowVRate;
-                canAccessSeeds = !!userData.allowSeeds;
-            } else { 
-                // FALLBACK: Concede acesso de leitura para e-mails não cadastrados
-                // sem deslogar o usuário nem travar a tela
-                currentUserRole = "client";
+            if (adminEmails.includes(userEmail)) { 
+                currentUserRole = "admin"; 
                 currentUserAllowedFarms = ["all"];
                 canAccessSampling = true;
                 canAccessVRate = true;
                 canAccessSeeds = true;
+            } else {
+                try {
+                    const userDoc = await db.collection("users").doc(userEmail).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        currentUserRole = userData.role || "client";
+                        currentUserAllowedFarms = userData.farms || [];
+                        canAccessSampling = !!userData.allowSampling;
+                        canAccessVRate = !!userData.allowVRate;
+                        canAccessSeeds = !!userData.allowSeeds;
+                    } else { 
+                        alert("Acesso restrito à equipe Origens ou usuários autorizados pelo administrador!"); 
+                        await auth.signOut(); 
+                        showSection('landing');
+                        return; 
+                    }
+                } catch (err) { 
+                    console.error(err); 
+                    alert("Erro ao validar permissões na nuvem.");
+                    await auth.signOut();
+                    showSection('landing');
+                    return;
+                }
             }
-        } catch (err) { 
-            console.error("Erro ao validar permissões na nuvem (usando modo fallback):", err);
-            currentUserRole = "client";
-            currentUserAllowedFarms = ["all"];
-            canAccessSampling = true;
-            canAccessVRate = true;
-            canAccessSeeds = true;
-        }
-    }
 
-    // Transição de tela para o SaaS
-    document.getElementById('landing-section').classList.add('hidden');
-    document.getElementById('saas-section').classList.remove('hidden');
-    
-    if (document.getElementById('user-display-name')) {
-        document.getElementById('user-display-name').innerText = currentUser.displayName || currentUser.email;
-    }
-    if (document.getElementById('user-display-email')) {
-        document.getElementById('user-display-email').innerText = currentUser.email;
-    }
-
-    const roleBadge = document.getElementById('user-display-role');
-    const adminExtraExcelControls = document.getElementById('admin-extra-excel-controls');
-
-    if (currentUserRole === 'admin') {
-        if (roleBadge) {
-            roleBadge.innerText = "Modo Edição (Admin)";
-            roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
-        }
-        if (document.getElementById('admin-only-menu')) document.getElementById('admin-only-menu').classList.remove('hidden');
-        if (document.getElementById('upload-box-admin')) document.getElementById('upload-box-admin').classList.remove('hidden');
-        if (adminExtraExcelControls) adminExtraExcelControls.classList.remove('hidden');
-    } else {
-        if (roleBadge) {
-            roleBadge.innerText = "Modo Leitura";
-            roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300";
-        }
-        if (document.getElementById('admin-only-menu')) document.getElementById('admin-only-menu').classList.add('hidden');
-        if (document.getElementById('upload-box-admin')) document.getElementById('upload-box-admin').classList.add('hidden');
-        if (adminExtraExcelControls) adminExtraExcelControls.classList.add('hidden');
-    }
-
-    const tabVrateBtn = document.getElementById('tab-vrate');
-    const tabSeedsBtn = document.getElementById('tab-seeds');
-    const tabSamplingBtn = document.getElementById('tab-sampling');
-
-    if (tabVrateBtn) canAccessVRate ? tabVrateBtn.classList.remove('hidden') : tabVrateBtn.classList.add('hidden');
-    if (tabSeedsBtn) canAccessSeeds ? tabSeedsBtn.classList.remove('hidden') : tabSeedsBtn.classList.add('hidden');
-    if (tabSamplingBtn) canAccessSampling ? tabSamplingBtn.classList.remove('hidden') : tabSamplingBtn.classList.add('hidden');
-
-    // Executa o carregamento das fazendas (Serrinha, Colorado, etc.) do Firebase original
-    await loadCloudData();
-    initLeafletMap();
-}
             document.getElementById('landing-section').classList.add('hidden');
             document.getElementById('saas-section').classList.remove('hidden');
             document.getElementById('user-display-name').innerText = currentUser.displayName || currentUser.email;
