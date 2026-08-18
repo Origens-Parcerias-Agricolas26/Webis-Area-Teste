@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+    <!--
+    ===================================================================
+     PLATAFORMA WEBGIS - ORIGENS PARCERIAS AGRÍCOLAS
+     Propriedade Intelectual e Direitos Reservados:
+     Autor / Proprietário: Tiago Ritter Moreira
+     Empresa: Origens Parcerias Agrícolas LTDA
+     Todos os direitos reservados.
+    ===================================================================
+    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="author" content="Tiago Ritter Moreira">
@@ -8,15 +17,21 @@
     <meta name="owner" content="Tiago Ritter Moreira - Origens Parcerias Agrícolas LTDA">
     
     <title>Origens - Parcerias Agrícolas | WebGIS Pro</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet GIS CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- JSZip, Shapefile Parser & XLSX Reader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://unpkg.com/shpjs@latest/dist/shp.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- jsPDF para Geração Direta de PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+    <!-- Firebase SDK Compat -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -54,6 +69,7 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased">
 
+    <!-- BARRA DE NAVEGAÇÃO -->
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-20">
@@ -76,6 +92,7 @@
         </div>
     </nav>
 
+    <!-- LANDING PAGE -->
     <div id="landing-section">
         <section class="relative bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white py-24">
             <div class="max-w-7xl mx-auto px-4 text-center">
@@ -89,8 +106,10 @@
         </section>
     </div>
 
+    <!-- PLATAFORMA SAAS -->
     <div id="saas-section" class="hidden">
         <div class="flex h-[calc(100vh-80px)] overflow-hidden">
+            <!-- Sidebar -->
             <aside class="w-64 bg-slate-900 text-white flex flex-col justify-between p-4 border-r border-slate-800">
                 <div class="space-y-6">
                     <div class="px-3 py-2 bg-slate-800/80 rounded-xl border border-slate-700/50">
@@ -100,6 +119,7 @@
                         <span id="user-display-role" class="inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300">Modo Leitura</span>
                     </div>
 
+                    <!-- BARRA LATERAL COM BOTÕES DOS MÓDULOS -->
                     <nav class="space-y-2 font-medium">
                         <button onclick="switchTab('maps')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white" id="tab-maps">
                             <i class="fa-solid fa-layer-group text-origens-green"></i><span>Visualizador GIS</span>
@@ -113,6 +133,7 @@
                             <i class="fa-solid fa-wheat-awn text-emerald-400"></i><span>Sementes & Plantio TV</span>
                         </button>
 
+                        <!-- MÓDULO: AMOSTRAGEM DE SOLO -->
                         <button onclick="switchTab('sampling')" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-slate-800 hidden" id="tab-sampling">
                             <i class="fa-solid fa-vial-circle-check text-blue-400"></i><span>Amostragem de Solo</span>
                         </button>
@@ -130,8 +151,10 @@
                 </button>
             </aside>
 
+            <!-- Conteúdo Principal WebGIS -->
             <main class="flex-1 bg-slate-100 overflow-hidden p-6 flex flex-col">
                 
+                <!-- MÓDULO 1: FERTILIDADE DO SOLO -->
                 <div id="content-maps" class="h-full flex gap-6">
                     <div class="w-80 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between overflow-y-auto">
                         <div class="space-y-5">
@@ -168,6 +191,7 @@
                                 <div id="container-talhao-checkboxes" class="max-h-40 overflow-y-auto bg-slate-50 border border-slate-300 rounded-xl p-2 space-y-1 text-xs"></div>
                             </div>
 
+                            <!-- MÓDULO: PLANILHA COMPLEMENTAR / RESULTADOS (.XLSX) -->
                             <div class="bg-blue-50 border border-blue-200 p-3.5 rounded-xl space-y-2">
                                 <span class="text-xs font-extrabold text-blue-900 uppercase block"><i class="fa-solid fa-file-excel mr-1"></i>Planilha Complementar / Resultados</span>
                                 <div id="container-extra-excel" class="space-y-2 text-xs">
@@ -181,6 +205,7 @@
                                 </div>
                             </div>
 
+                            <!-- HISTÓRICO DE PRESCRIÇÕES SALVAS NA SAFRA -->
                             <div class="bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl space-y-2">
                                 <span class="text-xs font-extrabold text-indigo-900 uppercase block"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Histórico de Prescrições Salvas</span>
                                 <div id="container-saved-maps" class="max-h-36 overflow-y-auto space-y-1.5 text-xs">
@@ -253,6 +278,7 @@
                                 </div>
                             </div>
 
+                            <!-- PARÂMETROS DE SOLO -->
                             <div>
                                 <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Parâmetro de Solo</label>
                                 <select id="sel-param" onchange="updateGISMap()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-sm text-slate-800">
@@ -320,6 +346,7 @@
                         </div>
                     </div>
 
+                    <!-- Container do Mapa -->
                     <div id="map-container" class="flex-1 bg-white rounded-2xl border border-slate-200 relative overflow-hidden shadow-sm flex flex-col">
                         <div id="left-map-pane" class="map-pane-split"><div id="map-left" class="w-full h-full"></div></div>
                         <div id="right-map-pane" class="map-pane-split"><div id="map-right" class="w-full h-full"></div></div>
@@ -331,6 +358,7 @@
                     </div>
                 </div>
 
+                <!-- MÓDULO 2: TAXA VARIÁVEL & PRESCRIÇÃO -->
                 <div id="content-vrate" class="hidden h-full flex gap-6">
                     <div class="w-96 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between overflow-y-auto space-y-5">
                         <div class="space-y-4">
@@ -379,6 +407,7 @@
                                 </button>
                             </div>
 
+                            <!-- CONTROLES DE RÓTULO DO MAPA DE TAXA VARIÁVEL -->
                             <div class="space-y-2 pt-2 border-t border-amber-200">
                                 <span class="text-xs font-bold text-amber-800 uppercase tracking-wider block mb-1">Camadas & Rótulos no Mapa/PDF</span>
                                 <label class="flex items-center space-x-3 cursor-pointer">
@@ -395,6 +424,7 @@
                                 </label>
                             </div>
 
+                            <!-- RESUMO DA APLICAÇÃO -->
                             <div id="vrate-summary-box" class="bg-slate-900 text-white p-4 rounded-2xl space-y-2 hidden">
                                 <span class="text-xs font-black text-amber-400 uppercase block border-b border-slate-800 pb-1">Resumo do Insumo</span>
                                 <div class="flex justify-between text-xs"><span>Produto:</span><b id="vrate-sum-prod" class="text-white">---</b></div>
@@ -403,6 +433,7 @@
                                 <div class="flex justify-between text-xs text-sm border-t border-slate-800 pt-1 mt-1"><span>Total Produto:</span><b id="vrate-sum-total" class="text-emerald-400 font-extrabold text-sm">---</b></div>
                             </div>
 
+                            <!-- EXPORTAR PARA MONITORES & PDF PRESCRIÇÃO -->
                             <div class="space-y-2 border-t pt-3">
                                 <span class="text-xs font-extrabold text-slate-500 uppercase block">Exportar Prescrição</span>
                                 <div>
@@ -435,6 +466,7 @@
                         </div>
                     </div>
 
+                    <!-- MAPA DA TAXA VARIÁVEL -->
                     <div id="vrate-map-container" class="flex-1 bg-white rounded-2xl border border-slate-200 relative overflow-hidden shadow-sm">
                         <div id="vrate-map" class="w-full h-full"></div>
                         <div class="absolute bottom-6 right-6 bg-white/95 backdrop-blur p-4 rounded-xl shadow-xl border border-slate-200 z-30 min-w-[240px]">
@@ -444,6 +476,7 @@
                     </div>
                 </div>
 
+                <!-- MÓDULO 3: SEMENTES & PLANTIO TAXA VARIÁVEL -->
                 <div id="content-seeds" class="hidden h-full flex gap-6">
                     <div class="w-96 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between overflow-y-auto space-y-5">
                         <div class="space-y-4">
@@ -502,6 +535,7 @@
                                 </button>
                             </div>
 
+                            <!-- CONTROLES DO MODO DE VISUALIZAÇÃO DO MAPA -->
                             <div class="space-y-2 pt-2 border-t border-emerald-200">
                                 <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block mb-1">Modo de Exibição do Mapa</span>
                                 <div>
@@ -524,6 +558,7 @@
                                 </label>
                             </div>
 
+                            <!-- RESUMO DO PLANTIO DE SEMENTES -->
                             <div id="seeds-summary-box" class="bg-slate-900 text-white p-4 rounded-2xl space-y-2 hidden">
                                 <span class="text-xs font-black text-emerald-400 uppercase block border-b border-slate-800 pb-1">Resumo do Plantio</span>
                                 <div class="flex justify-between text-xs"><span>Cultura:</span><b id="seeds-sum-crop" class="text-white">---</b></div>
@@ -532,6 +567,7 @@
                                 <div class="flex justify-between text-xs text-sm border-t border-slate-800 pt-1 mt-1"><span>Total Sementes:</span><b id="seeds-sum-total" class="text-emerald-400 font-extrabold text-sm">---</b></div>
                             </div>
 
+                            <!-- EXPORTAR PARA MONITORES & PDF SEMENTES -->
                             <div class="space-y-2 border-t pt-3">
                                 <span class="text-xs font-extrabold text-slate-500 uppercase block">Exportar Prescrição de Plantio</span>
                                 <div>
@@ -564,6 +600,7 @@
                         </div>
                     </div>
 
+                    <!-- MAPA DA PRESCRIÇÃO DE SEMENTES -->
                     <div id="seeds-map-container" class="flex-1 bg-white rounded-2xl border border-slate-200 relative overflow-hidden shadow-sm">
                         <div id="seeds-map" class="w-full h-full"></div>
                         <div class="absolute bottom-6 right-6 bg-white/95 backdrop-blur p-4 rounded-xl shadow-xl border border-slate-200 z-30 min-w-[240px]">
@@ -573,7 +610,9 @@
                     </div>
                 </div>
 
+                <!-- MÓDULO 4: ACOMPANHAMENTO DE AMOSTRAGEM DE SOLO -->
                 <div id="content-sampling" class="hidden h-full flex flex-col space-y-4 overflow-y-auto pr-2">
+                    <!-- Cabeçalho Módulo -->
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
                         <div>
                             <h2 class="text-xl font-black text-slate-900 flex items-center gap-2">
@@ -589,6 +628,7 @@
                         </div>
                     </div>
 
+                    <!-- CARDS DE KPI (DASHBOARD) -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
                             <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-700 text-xl font-bold">
@@ -631,6 +671,7 @@
                         </div>
                     </div>
 
+                    <!-- BARRA DE PROGRESSO GERAL -->
                     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
                             <span>Avanço Físico das Amostras</span>
@@ -641,6 +682,7 @@
                         </div>
                     </div>
 
+                    <!-- FILTROS & TABELA DE RELATÓRIO -->
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col space-y-4">
                         <div class="flex flex-wrap gap-4 items-center justify-between">
                             <div class="flex gap-3 items-center flex-1 max-w-2xl">
@@ -654,6 +696,7 @@
                             <span id="sampling-last-update" class="text-[11px] font-semibold text-slate-400">Última atualização: ---</span>
                         </div>
 
+                        <!-- TABELA ESTILIZADA -->
                         <div class="overflow-x-auto flex-1 border border-slate-200 rounded-xl">
                             <table class="w-full text-left border-collapse text-xs">
                                 <thead>
@@ -675,6 +718,7 @@
                     </div>
                 </div>
 
+                <!-- GESTÃO DE ACESSOS -->
                 <div id="content-users" class="hidden space-y-6 overflow-y-auto h-full pr-2">
                     <div class="flex justify-between items-center border-b pb-4">
                         <div>
@@ -745,6 +789,7 @@
                                     </div>
                                 </div>
 
+                                <!-- PERMISSÕES ESPECÍFICAS DE MÓDULOS DA PLATAFORMA -->
                                 <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl space-y-2">
                                     <span class="text-xs font-bold text-blue-900 uppercase block border-b border-blue-200 pb-1">Permissões de Módulos</span>
                                     
@@ -817,6 +862,7 @@
         </div>
     </div>
 
+    <!-- CANVAS OCULTO PARA EXPORTAÇÃO DO PDF -->
     <canvas id="pdf-render-canvas" width="1600" height="1200" style="display:none;"></canvas>
 
     <script>
@@ -889,71 +935,110 @@
         }
 
         async function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
             try {
-                const provider = new firebase.auth.GoogleAuthProvider();
                 const result = await auth.signInWithPopup(provider);
                 currentUser = result.user;
                 await checkUserAuthorization();
-            } catch (error) { 
-                console.error("Erro no login do Google/Firebase:", error);
-                currentUser = { 
-                    displayName: "Usuário Origens", 
-                    email: "administrativo@origens.agr.br" 
-                };
-                await checkUserAuthorization();
-            }
+            } catch (error) { alert("Erro no login: " + error.message); }
         }
 
         async function logout() {
             try {
                 await auth.signOut();
-            } catch(e) {}
-            currentUser = null;
-            showSection('landing');
+                currentUser = null;
+                showSection('landing');
+            } catch (e) { console.error(e); }
         }
 
         async function checkUserAuthorization() {
-            if (!currentUser) return;
-            const userEmail = currentUser.email.toLowerCase();
-            const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
+    if (!currentUser) return;
+    const userEmail = currentUser.email.toLowerCase();
+    const adminEmails = ["administrativo@origens.agr.br", "tiagoritter@gmail.com", "tiago.ritter@origens.agr.br"];
 
-            canAccessSampling = false;
-            canAccessVRate = false;
-            canAccessSeeds = false;
+    canAccessSampling = false;
+    canAccessVRate = false;
+    canAccessSeeds = false;
 
-            if (adminEmails.includes(userEmail)) { 
-                currentUserRole = "admin"; 
+    if (adminEmails.includes(userEmail)) { 
+        currentUserRole = "admin"; 
+        currentUserAllowedFarms = ["all"];
+        canAccessSampling = true;
+        canAccessVRate = true;
+        canAccessSeeds = true;
+    } else {
+        try {
+            const userDoc = await db.collection("users").doc(userEmail).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                currentUserRole = userData.role || "client";
+                currentUserAllowedFarms = userData.farms || [];
+                canAccessSampling = !!userData.allowSampling;
+                canAccessVRate = !!userData.allowVRate;
+                canAccessSeeds = !!userData.allowSeeds;
+            } else { 
+                // FALLBACK: Concede acesso de leitura para e-mails não cadastrados
+                // sem deslogar o usuário nem travar a tela
+                currentUserRole = "client";
                 currentUserAllowedFarms = ["all"];
                 canAccessSampling = true;
                 canAccessVRate = true;
                 canAccessSeeds = true;
-            } else {
-                try {
-                    const userDoc = await db.collection("users").doc(userEmail).get();
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
-                        currentUserRole = userData.role || "client";
-                        currentUserAllowedFarms = userData.farms || [];
-                        canAccessSampling = !!userData.allowSampling;
-                        canAccessVRate = !!userData.allowVRate;
-                        canAccessSeeds = !!userData.allowSeeds;
-                    } else { 
-                        currentUserRole = "client";
-                        currentUserAllowedFarms = ["all"];
-                        canAccessSampling = true;
-                        canAccessVRate = true;
-                        canAccessSeeds = true;
-                    }
-                } catch (err) { 
-                    console.error("Erro ao validar permissões no banco:", err);
-                    currentUserRole = "client";
-                    currentUserAllowedFarms = ["all"];
-                    canAccessSampling = true;
-                    canAccessVRate = true;
-                    canAccessSeeds = true;
-                }
             }
+        } catch (err) { 
+            console.error("Erro ao validar permissões na nuvem (usando modo fallback):", err);
+            currentUserRole = "client";
+            currentUserAllowedFarms = ["all"];
+            canAccessSampling = true;
+            canAccessVRate = true;
+            canAccessSeeds = true;
+        }
+    }
 
+    // Transição de tela para o SaaS
+    document.getElementById('landing-section').classList.add('hidden');
+    document.getElementById('saas-section').classList.remove('hidden');
+    
+    if (document.getElementById('user-display-name')) {
+        document.getElementById('user-display-name').innerText = currentUser.displayName || currentUser.email;
+    }
+    if (document.getElementById('user-display-email')) {
+        document.getElementById('user-display-email').innerText = currentUser.email;
+    }
+
+    const roleBadge = document.getElementById('user-display-role');
+    const adminExtraExcelControls = document.getElementById('admin-extra-excel-controls');
+
+    if (currentUserRole === 'admin') {
+        if (roleBadge) {
+            roleBadge.innerText = "Modo Edição (Admin)";
+            roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
+        }
+        if (document.getElementById('admin-only-menu')) document.getElementById('admin-only-menu').classList.remove('hidden');
+        if (document.getElementById('upload-box-admin')) document.getElementById('upload-box-admin').classList.remove('hidden');
+        if (adminExtraExcelControls) adminExtraExcelControls.classList.remove('hidden');
+    } else {
+        if (roleBadge) {
+            roleBadge.innerText = "Modo Leitura";
+            roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300";
+        }
+        if (document.getElementById('admin-only-menu')) document.getElementById('admin-only-menu').classList.add('hidden');
+        if (document.getElementById('upload-box-admin')) document.getElementById('upload-box-admin').classList.add('hidden');
+        if (adminExtraExcelControls) adminExtraExcelControls.classList.add('hidden');
+    }
+
+    const tabVrateBtn = document.getElementById('tab-vrate');
+    const tabSeedsBtn = document.getElementById('tab-seeds');
+    const tabSamplingBtn = document.getElementById('tab-sampling');
+
+    if (tabVrateBtn) canAccessVRate ? tabVrateBtn.classList.remove('hidden') : tabVrateBtn.classList.add('hidden');
+    if (tabSeedsBtn) canAccessSeeds ? tabSeedsBtn.classList.remove('hidden') : tabSeedsBtn.classList.add('hidden');
+    if (tabSamplingBtn) canAccessSampling ? tabSamplingBtn.classList.remove('hidden') : tabSamplingBtn.classList.add('hidden');
+
+    // Executa o carregamento das fazendas (Serrinha, Colorado, etc.) do Firebase original
+    await loadCloudData();
+    initLeafletMap();
+}
             document.getElementById('landing-section').classList.add('hidden');
             document.getElementById('saas-section').classList.remove('hidden');
             document.getElementById('user-display-name').innerText = currentUser.displayName || currentUser.email;
@@ -963,20 +1048,16 @@
             const adminExtraExcelControls = document.getElementById('admin-extra-excel-controls');
 
             if (currentUserRole === 'admin') {
-                if (roleBadge) {
-                    roleBadge.innerText = "Modo Edição (Admin)";
-                    roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
-                }
-                if (document.getElementById('admin-only-menu')) document.getElementById('admin-only-menu').classList.remove('hidden');
-                if (document.getElementById('upload-box-admin')) document.getElementById('upload-box-admin').classList.remove('hidden');
+                roleBadge.innerText = "Modo Edição (Admin)";
+                roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-emerald-700 text-white";
+                document.getElementById('admin-only-menu').classList.remove('hidden');
+                document.getElementById('upload-box-admin').classList.remove('hidden');
                 if (adminExtraExcelControls) adminExtraExcelControls.classList.remove('hidden');
             } else {
-                if (roleBadge) {
-                    roleBadge.innerText = "Modo Leitura";
-                    roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300";
-                }
-                if (document.getElementById('admin-only-menu')) document.getElementById('admin-only-menu').classList.add('hidden');
-                if (document.getElementById('upload-box-admin')) document.getElementById('upload-box-admin').classList.add('hidden');
+                roleBadge.innerText = "Modo Leitura";
+                roleBadge.className = "inline-block mt-1 px-2 py-0.5 text-[10px] font-black uppercase rounded bg-slate-700 text-slate-300";
+                document.getElementById('admin-only-menu').classList.add('hidden');
+                document.getElementById('upload-box-admin').classList.add('hidden');
                 if (adminExtraExcelControls) adminExtraExcelControls.classList.add('hidden');
             }
 
@@ -1052,6 +1133,10 @@
             return String(val);
         }
 
+        function format1Decimal(val) {
+            return formatDisplayValue(val);
+        }
+
         function extractSafra(rowObj) {
             if (!rowObj) return null;
             if (typeof rowObj !== 'object') {
@@ -1105,6 +1190,21 @@
             if (r.CTC === null && ctcCalc > 0) r.CTC = Math.round(ctcCalc * 100) / 100;
             if (r['V%'] === null && ctcCalc > 0) r['V%'] = Math.round((sbCalc / ctcCalc) * 1000) / 10;
             if (r['Sat. Al'] === null && (sbCalc + al) > 0) r['Sat. Al'] = Math.round((al / (sbCalc + al)) * 1000) / 10;
+
+            if (r['Classes de MO'] === null && r.MO !== null) {
+                if (r.MO >= 40) r['Classes de MO'] = 1;
+                else if (r.MO >= 30) r['Classes de MO'] = 2;
+                else if (r.MO >= 20) r['Classes de MO'] = 3;
+                else r['Classes de MO'] = 4;
+            }
+
+            if (r['Classes de P'] === null && r.P !== null) {
+                if (r.P >= 18.1) r['Classes de P'] = 5;
+                else if (r.P >= 12.1) r['Classes de P'] = 4;
+                else if (r.P >= 8.1) r['Classes de P'] = 3;
+                else if (r.P >= 3.1) r['Classes de P'] = 2;
+                else r['Classes de P'] = 1;
+            }
 
             return r;
         }
@@ -1185,8 +1285,746 @@
                     usersDatabase.push({ email: doc.id, ...doc.data() });
                 });
 
+                try {
+                    const prescrSnap = await db.collection("prescriptions").orderBy("createdAt", "desc").get();
+                    savedPrescriptionsDatabase = [];
+                    prescrSnap.forEach(pDoc => {
+                        savedPrescriptionsDatabase.push({ id: pDoc.id, ...pDoc.data() });
+                    });
+                } catch (ePrescr) { console.warn("Aviso ao carregar prescrições salvas:", ePrescr); }
+
+                try {
+                    const extraSnap = await db.collection("extra_excels").get();
+                    extraExcelDatabase = [];
+                    extraSnap.forEach(eDoc => {
+                        extraExcelDatabase.push({ id: eDoc.id, ...eDoc.data() });
+                    });
+                } catch (eExtra) { console.warn("Aviso ao carregar planilhas extras:", eExtra); }
+
                 populateFarmSelector();
-            } catch (err) { console.error("Aviso ao carregar dados da nuvem:", err); }
+                renderAdminTables();
+            } catch (err) { console.error("Erro ao carregar dados da nuvem:", err); }
+        }
+
+        function renderAdminTables() {
+            const farmsBody = document.getElementById('farms-table-body');
+            const usersBody = document.getElementById('users-table-body');
+            if (!farmsBody || !usersBody) return;
+
+            farmsBody.innerHTML = Object.keys(farmsDatabase).map(k => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3">
+                        <span class="font-bold block text-slate-900">${farmsDatabase[k].name}</span>
+                        <span class="text-[11px] font-semibold text-emerald-700 block"><i class="fa-solid fa-user text-[10px] mr-1"></i>${farmsDatabase[k].producer || 'Produtor Não Informado'}</span>
+                    </td>
+                    <td class="p-3 text-slate-500">${farmsDatabase[k].location}</td>
+                    <td class="p-3 font-semibold text-emerald-600">${farmsDatabase[k].area} ha</td>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="editFarm('${k}')" class="text-blue-600 hover:text-blue-800 font-bold" title="Editar Fazenda"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="deleteFarm('${k}')" class="text-red-600 hover:text-red-800 font-bold" title="Excluir Fazenda"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            usersBody.innerHTML = usersDatabase.map((u) => {
+                let farmNames = 'Todas';
+                if (u.farms && !u.farms.includes('all')) {
+                    farmNames = u.farms.map(fKey => farmsDatabase[fKey] ? farmsDatabase[fKey].name : fKey).join(', ');
+                }
+                
+                let modBadges = [];
+                if (u.allowVRate) modBadges.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800">Adubação</span>');
+                if (u.allowSeeds) modBadges.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">Sementes</span>');
+                if (u.allowSampling) modBadges.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-800">Amostragem</span>');
+                
+                if (!modBadges.length) modBadges.push('<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-500">Só GIS</span>');
+
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3 font-bold">${u.name || 'Cliente'}</td>
+                        <td class="p-3 font-mono text-slate-600">${u.email}</td>
+                        <td class="p-3 text-slate-500 font-semibold">${farmNames}</td>
+                        <td class="p-3 text-center flex flex-wrap gap-1 justify-center">${modBadges.join('')}</td>
+                        <td class="p-3 text-right space-x-2">
+                            <button onclick="editUser('${u.email}')" class="text-blue-600 hover:text-blue-800 font-bold" title="Editar Usuário"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteUser('${u.email}')" class="text-red-600 hover:text-red-800 font-bold" title="Excluir Permissão"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function editFarm(key) {
+            const farm = farmsDatabase[key];
+            if (!farm) return;
+
+            document.getElementById('edit-farm-key').value = key;
+            document.getElementById('farm-id').value = key;
+            document.getElementById('farm-id').disabled = true;
+            document.getElementById('farm-producer').value = farm.producer || '';
+            document.getElementById('farm-name').value = farm.name || '';
+            document.getElementById('farm-location').value = farm.location || '';
+            document.getElementById('farm-area').value = farm.area || 0;
+
+            document.getElementById('btn-save-farm').innerText = "Atualizar Fazenda";
+            document.getElementById('btn-cancel-farm-edit').classList.remove('hidden');
+        }
+
+        function cancelFarmEdit() {
+            document.getElementById('edit-farm-key').value = '';
+            document.getElementById('farm-id').value = '';
+            document.getElementById('farm-id').disabled = false;
+            document.getElementById('farm-producer').value = '';
+            document.getElementById('farm-name').value = '';
+            document.getElementById('farm-location').value = '';
+            document.getElementById('farm-area').value = '';
+
+            document.getElementById('btn-save-farm').innerText = "Salvar Fazenda na Nuvem";
+            document.getElementById('btn-cancel-farm-edit').classList.add('hidden');
+        }
+
+        async function handleCreateFarmDirect(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            if (currentUserRole !== 'admin') {
+                alert("Apenas administradores master podem cadastrar/editar fazendas!");
+                return false;
+            }
+
+            const editKey = document.getElementById('edit-farm-key').value;
+            const idInput = document.getElementById('farm-id');
+            const producerInput = document.getElementById('farm-producer');
+            const nameInput = document.getElementById('farm-name');
+            const locationInput = document.getElementById('farm-location');
+            const areaInput = document.getElementById('farm-area');
+
+            const id = editKey || idInput.value.trim().toLowerCase().replace(/\s+/g, '_');
+            const producer = producerInput.value.trim();
+            const name = nameInput.value.trim();
+            const location = locationInput.value.trim();
+            const area = parseFloat(areaInput.value);
+
+            if (!id || !name || !producer) {
+                alert("Por favor, preencha o ID, o Nome do Produtor e o Nome da propriedade!");
+                return false;
+            }
+
+            const initialGeoJSON = farmsDatabase[id] ? farmsDatabase[id].geojson : { "type": "FeatureCollection", "features": [] };
+
+            try {
+                const compressedZip = await compressGeoJSON(initialGeoJSON);
+                const payloadToSave = { 
+                    name: name, 
+                    producer: producer,
+                    location: location, 
+                    area: area, 
+                    geojsonZip: compressedZip,
+                    isChunked: false
+                };
+
+                await db.collection("farms").doc(id).set(payloadToSave, { merge: true });
+                farmsDatabase[id] = { name: name, producer: producer, location: location, area: area, geojson: initialGeoJSON };
+
+                populateFarmSelector();
+                renderAdminTables();
+                alert(`Fazenda ${name} (${producer}) salva com sucesso na nuvem!`);
+                cancelFarmEdit();
+            } catch (err) {
+                console.error("Erro ao salvar fazenda:", err);
+                alert("Falha ao salvar fazenda na nuvem: " + err.message);
+            }
+            return false;
+        }
+
+        function editUser(email) {
+            const user = usersDatabase.find(u => u.email === email);
+            if (!user) return;
+
+            document.getElementById('edit-user-mode').value = "edit";
+            document.getElementById('new-name').value = user.name || '';
+            document.getElementById('new-email').value = user.email;
+            document.getElementById('new-email').disabled = true;
+
+            const chkAll = document.getElementById('chk-farm-all');
+            const isAll = user.farms && user.farms.includes('all');
+            if (chkAll) chkAll.checked = isAll;
+
+            const items = document.querySelectorAll('.chk-farm-item');
+            items.forEach(chk => {
+                chk.checked = isAll || (user.farms && user.farms.includes(chk.value));
+            });
+
+            document.getElementById('chk-allow-vrate').checked = !!user.allowVRate;
+            document.getElementById('chk-allow-seeds').checked = !!user.allowSeeds;
+            document.getElementById('chk-allow-sampling').checked = !!user.allowSampling;
+
+            document.getElementById('btn-save-user').innerText = "Atualizar Permissões do Cliente";
+            document.getElementById('btn-cancel-user-edit').classList.remove('hidden');
+        }
+
+        function cancelUserEdit() {
+            document.getElementById('edit-user-mode').value = "create";
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-email').value = '';
+            document.getElementById('new-email').disabled = false;
+            
+            const chkAll = document.getElementById('chk-farm-all');
+            if (chkAll) chkAll.checked = false;
+            toggleAllFarmsCheckboxes(chkAll);
+
+            document.getElementById('chk-allow-vrate').checked = false;
+            document.getElementById('chk-allow-seeds').checked = false;
+            document.getElementById('chk-allow-sampling').checked = false;
+
+            document.getElementById('btn-save-user').innerText = "Autorizar E-mail Google";
+            document.getElementById('btn-cancel-user-edit').classList.add('hidden');
+        }
+
+        async function handleCreateUser(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            if (currentUserRole !== 'admin') {
+                alert("Apenas administradores master podem gerenciar acessos!");
+                return false;
+            }
+
+            const nameInput = document.getElementById('new-name');
+            const emailInput = document.getElementById('new-email');
+            const chkAll = document.getElementById('chk-farm-all');
+            const chkItems = document.querySelectorAll('.chk-farm-item:checked');
+            
+            const allowVRate = document.getElementById('chk-allow-vrate').checked;
+            const allowSeeds = document.getElementById('chk-allow-seeds').checked;
+            const allowSampling = document.getElementById('chk-allow-sampling').checked;
+
+            const name = nameInput.value.trim();
+            const email = emailInput.value.trim().toLowerCase();
+
+            if (!email) {
+                alert("Por favor, preencha o e-mail Google!");
+                return false;
+            }
+
+            let selectedFarms = [];
+            if (chkAll && chkAll.checked) {
+                selectedFarms = ['all'];
+            } else {
+                chkItems.forEach(chk => selectedFarms.push(chk.value));
+            }
+
+            if (!selectedFarms.length) {
+                alert("Por favor, marque pelo menos uma fazenda ou selecione 'TODAS AS FAZENDAS'!");
+                return false;
+            }
+
+            const userObj = { 
+                name: name, 
+                role: 'client', 
+                farms: selectedFarms, 
+                allowVRate: allowVRate, 
+                allowSeeds: allowSeeds, 
+                allowSampling: allowSampling 
+            };
+
+            try {
+                await db.collection("users").doc(email).set(userObj, { merge: true });
+                await loadCloudData();
+                alert(`E-mail ${email} salvo com sucesso com as permissões atualizadas!`);
+                cancelUserEdit();
+            } catch (err) {
+                console.error("Erro ao autorizar usuário:", err);
+                alert("Falha ao autorizar e-mail na nuvem: " + err.message);
+            }
+            return false;
+        }
+
+        async function deleteFarm(key) {
+            if (currentUserRole !== 'admin') return;
+            if(confirm("Deseja excluir esta fazenda do banco na nuvem?")) {
+                try {
+                    await db.collection("farms").doc(key).delete();
+                    delete farmsDatabase[key];
+                    populateFarmSelector();
+                    renderAdminTables();
+                } catch (err) { alert("Erro ao excluir fazenda: " + err.message); }
+            }
+        }
+
+        async function deleteUser(email) {
+            if (currentUserRole !== 'admin') return;
+            if(confirm("Deseja remover a permissão deste e-mail?")) {
+                try {
+                    await db.collection("users").doc(email).delete();
+                    await loadCloudData();
+                } catch (err) { alert("Erro ao excluir permissão: " + err.message); }
+            }
+        }
+
+        function toggleAllFarmsCheckboxes(masterChk) {
+            const items = document.querySelectorAll('.chk-farm-item');
+            items.forEach(chk => chk.checked = masterChk.checked);
+        }
+
+        function populateFarmSelector() {
+            const farmSelect = document.getElementById('sel-farm');
+            const vrateSelect = document.getElementById('vrate-sel-farm');
+            const seedsSelect = document.getElementById('seeds-sel-farm');
+
+            if (farmSelect) farmSelect.innerHTML = '';
+            if (vrateSelect) vrateSelect.innerHTML = '';
+            if (seedsSelect) seedsSelect.innerHTML = '';
+
+            let keysToDisplay = Object.keys(farmsDatabase);
+            if (currentUserRole !== 'admin' && !currentUserAllowedFarms.includes('all')) {
+                keysToDisplay = keysToDisplay.filter(k => currentUserAllowedFarms.includes(k));
+            }
+
+            keysToDisplay.forEach(key => {
+                if (farmsDatabase[key]) {
+                    const farm = farmsDatabase[key];
+                    if (farmSelect) farmSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
+                    if (vrateSelect) vrateSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
+                    if (seedsSelect) seedsSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
+                }
+            });
+
+            const checkboxContainer = document.getElementById('new-farm-checkboxes');
+            if (checkboxContainer) {
+                checkboxContainer.innerHTML = Object.keys(farmsDatabase).map(k => `
+                    <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                        <input type="checkbox" name="chk-user-farms" value="${k}" class="chk-farm-item h-4 w-4 text-origens-green rounded">
+                        <span>${farmsDatabase[k].name} ${farmsDatabase[k].producer ? `(${farmsDatabase[k].producer})` : ''} - ${farmsDatabase[k].location}</span>
+                    </label>
+                `).join('');
+            }
+
+            populateSafraSelector();
+            populateTalhaoSelector();
+        }
+
+        function changeActiveFarm(sourceSelectId) {
+            const selectedVal = document.getElementById(sourceSelectId).value;
+            ['sel-farm', 'vrate-sel-farm', 'seeds-sel-farm'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.value !== selectedVal) el.value = selectedVal;
+            });
+
+            populateSafraSelector();
+            populateTalhaoSelector();
+
+            if (document.getElementById('content-seeds') && !document.getElementById('content-seeds').classList.contains('hidden')) {
+                seedsChangeFarm();
+            } else if (document.getElementById('content-vrate') && !document.getElementById('content-vrate').classList.contains('hidden')) {
+                vrateChangeFarm();
+            } else {
+                updateGISMap();
+            }
+        }
+
+        function switchTab(tab) {
+            if (tab === 'vrate' && !canAccessVRate) {
+                alert("Você não possui permissão de acesso ao Módulo de Taxa Variável & Adubação.");
+                return;
+            }
+            if (tab === 'seeds' && !canAccessSeeds) {
+                alert("Você não possui permissão de acesso ao Módulo de Sementes & Plantio.");
+                return;
+            }
+            if (tab === 'sampling' && !canAccessSampling) {
+                alert("Você não possui permissão de acesso ao Módulo de Amostragem de Solo.");
+                return;
+            }
+
+            ['maps', 'vrate', 'seeds', 'sampling', 'users'].forEach(t => {
+                const el = document.getElementById(`content-${t}`);
+                const btn = document.getElementById(`tab-${t}`);
+                if (el) el.classList.add('hidden');
+                if (btn) btn.classList.remove('bg-slate-800', 'text-white');
+            });
+
+            const activeContent = document.getElementById(`content-${tab}`);
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            if (activeContent) activeContent.classList.remove('hidden');
+            if (activeBtn) activeBtn.classList.add('bg-slate-800', 'text-white');
+
+            if (tab === 'vrate') {
+                initVRateMap();
+                setTimeout(() => { if (vrateMap) { vrateMap.invalidateSize(); vrateChangeFarm(); } }, 100);
+            } else if (tab === 'seeds') {
+                initSeedsMap();
+                setTimeout(() => { if (seedsMap) { seedsMap.invalidateSize(); seedsChangeFarm(); } }, 100);
+            } else if (tab === 'sampling') {
+                fetchSamplingData();
+            } else if (tab === 'maps') {
+                setTimeout(() => {
+                    if (mapLeft) mapLeft.invalidateSize();
+                    if (mapRight) mapRight.invalidateSize();
+                    updateGISMap();
+                }, 100);
+            } else if (tab === 'users') {
+                renderAdminTables();
+            }
+        }
+
+        function toggleViewMode() {
+            const mode = document.getElementById('sel-mode').value;
+            const singleBox = document.getElementById('box-single-depth');
+            const diffBox = document.getElementById('box-diff-depth');
+            const rightPane = document.getElementById('right-map-pane');
+            const leftPane = document.getElementById('left-map-pane');
+            const divider = document.getElementById('split-divider');
+
+            if (mode === 'sidebyside') {
+                singleBox.classList.add('hidden');
+                diffBox.classList.remove('hidden');
+                rightPane.style.display = 'block';
+                divider.style.display = 'block';
+                splitPosition = 0.5;
+                divider.style.left = '50%';
+                applySplitWidths();
+                initSplitSlider();
+            } else {
+                singleBox.classList.remove('hidden');
+                diffBox.classList.add('hidden');
+                rightPane.style.display = 'none';
+                divider.style.display = 'none';
+                leftPane.style.width = '100%';
+            }
+
+            setTimeout(() => {
+                if (mapLeft) mapLeft.invalidateSize();
+                if (mapRight) mapRight.invalidateSize();
+                updateGISMap();
+            }, 100);
+        }
+
+        function initSplitSlider() {
+            const divider = document.getElementById('split-divider');
+            const container = document.getElementById('map-container');
+            let isDragging = false;
+
+            divider.onmousedown = function(e) { isDragging = true; e.preventDefault(); };
+            window.onmouseup = function() { isDragging = false; };
+            window.onmousemove = function(e) {
+                if (!isDragging) return;
+                const rect = container.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                if (x < 0) x = 0;
+                if (x > rect.width) x = rect.width;
+                splitPosition = x / rect.width;
+                divider.style.left = (splitPosition * 100) + '%';
+                applySplitWidths();
+            };
+        }
+
+        function applySplitWidths() {
+            const leftPane = document.getElementById('left-map-pane');
+            const rightPane = document.getElementById('right-map-pane');
+            const pct = (splitPosition * 100).toFixed(1);
+
+            leftPane.style.width = pct + '%';
+            rightPane.style.width = (100 - pct).toFixed(1) + '%';
+
+            if (mapLeft) mapLeft.invalidateSize();
+            if (mapRight) mapRight.invalidateSize();
+        }
+
+        function populateSafraSelector() {
+            const selectedFarmKey = document.getElementById('sel-farm').value;
+            const container = document.getElementById('container-safra-checkboxes');
+            if (!container) return;
+
+            if (!selectedFarmKey || !farmsDatabase[selectedFarmKey]) {
+                container.innerHTML = '<span class="text-slate-400 italic">Sem safras salvas</span>';
+                renderSavedPrescriptionsList();
+                renderExtraExcelList();
+                return;
+            }
+
+            const currentGeoJSON = farmsDatabase[selectedFarmKey].geojson || { "type": "FeatureCollection", "features": [] };
+            const safrasSet = new Set();
+            if (currentGeoJSON.features && currentGeoJSON.features.length) {
+                currentGeoJSON.features.forEach(f => {
+                    if (f.properties) {
+                        if (f.properties.safras_historico) Object.keys(f.properties.safras_historico).forEach(s => { if (/^\d{4}$/.test(s)) safrasSet.add(s); });
+                        Object.keys(f.properties).forEach(pKey => {
+                            const detectedSafra = extractSafra(f.properties[pKey]);
+                            if (detectedSafra && /^\d{4}$/.test(detectedSafra)) safrasSet.add(detectedSafra);
+                        });
+                        if (f.properties.safra_origem) safrasSet.add(f.properties.safra_origem);
+                    }
+                });
+            }
+
+            const sortedSafras = Array.from(safrasSet).sort().reverse();
+            if (!sortedSafras.length) {
+                container.innerHTML = '<span class="text-slate-400 italic">Sem safras salvas</span>';
+                renderSavedPrescriptionsList();
+                renderExtraExcelList();
+                return;
+            }
+
+            container.innerHTML = sortedSafras.map((s, idx) => `
+                <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" name="chk-safra-item" value="${s}" ${idx === 0 ? 'checked' : ''} onchange="updateGISMap(); populateTalhaoSelector(); renderSavedPrescriptionsList(); renderExtraExcelList();" class="chk-safra-item h-3.5 w-3.5 text-origens-green rounded">
+                    <span>Safra ${s}</span>
+                </label>
+            `).join('');
+
+            renderSavedPrescriptionsList();
+            renderExtraExcelList();
+        }
+
+        function populateTalhaoSelector() {
+            const selectedFarmKey = document.getElementById('sel-farm').value;
+            const container = document.getElementById('container-talhao-checkboxes');
+            if (!container) return;
+
+            if (!selectedFarmKey || !farmsDatabase[selectedFarmKey]) {
+                container.innerHTML = '<span class="text-slate-400 italic">Sem talhões</span>';
+                return;
+            }
+
+            const selectedSafras = getSelectedSafras();
+            const currentGeoJSON = farmsDatabase[selectedFarmKey].geojson || { "type": "FeatureCollection", "features": [] };
+            const talhoesSet = new Set();
+
+            if (currentGeoJSON.features && currentGeoJSON.features.length) {
+                currentGeoJSON.features.forEach(f => {
+                    if (f.properties && f.properties.Talhao) {
+                        const featureSafra = f.properties.safra_origem || extractSafra(f.properties);
+                        const hasHistorico = f.properties.safras_historico && selectedSafras.some(s => f.properties.safras_historico[s]);
+                        const hasDirectSafra = featureSafra && selectedSafras.includes(featureSafra);
+                        if (!selectedSafras.length || hasHistorico || hasDirectSafra) {
+                            talhoesSet.add(String(f.properties.Talhao));
+                        }
+                    }
+                });
+            }
+
+            const sortedTalhoes = Array.from(talhoesSet).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+            if (!sortedTalhoes.length) {
+                container.innerHTML = '<span class="text-slate-400 italic">Nenhum talhão cadastrado</span>';
+                return;
+            }
+
+            let html = `
+                <label class="flex items-center gap-2 cursor-pointer font-bold text-emerald-800 border-b pb-1 mb-1 bg-emerald-50/50 p-1 rounded">
+                    <input type="checkbox" id="chk-master-talhao" checked onchange="toggleMasterTalhao(this)" class="h-3.5 w-3.5 text-origens-green rounded">
+                    <span>Selecionar Todos</span>
+                </label>
+            `;
+            html += sortedTalhoes.map(t => `
+                <label class="flex items-center gap-2 cursor-pointer font-semibold text-slate-700 px-1">
+                    <input type="checkbox" name="chk-talhao-item" value="${t}" checked onchange="syncMasterTalhaoCheck()" class="chk-talhao-item h-3.5 w-3.5 text-origens-green rounded">
+                    <span>Talhão ${t}</span>
+                </label>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function toggleMasterTalhao(masterChk) {
+            document.querySelectorAll('.chk-talhao-item').forEach(i => i.checked = masterChk.checked);
+            updateGISMap();
+        }
+
+        function syncMasterTalhaoCheck() {
+            const items = document.querySelectorAll('.chk-talhao-item');
+            const master = document.getElementById('chk-master-talhao');
+            if (master && items.length) master.checked = Array.from(items).every(i => i.checked);
+            updateGISMap();
+        }
+
+        function toggleAllSafras() {
+            const items = document.querySelectorAll('.chk-safra-item');
+            if (!items.length) return;
+            const anyUnchecked = Array.from(items).some(i => !i.checked);
+            items.forEach(i => i.checked = anyUnchecked);
+            populateTalhaoSelector();
+            renderSavedPrescriptionsList();
+            renderExtraExcelList();
+            updateGISMap();
+        }
+
+        function toggleAllTalhoesBtn() {
+            const master = document.getElementById('chk-master-talhao');
+            if (master) {
+                master.checked = !master.checked;
+                toggleMasterTalhao(master);
+            }
+        }
+
+        function toggleLayers() {
+            updateGISMap();
+        }
+
+        function getSelectedSafras() {
+            return Array.from(document.querySelectorAll('.chk-safra-item:checked')).map(i => i.value);
+        }
+
+        function getSelectedTalhoes() {
+            const checked = document.querySelectorAll('.chk-talhao-item:checked');
+            return Array.from(checked).map(i => i.value);
+        }
+
+        // =========================================================================
+        // MÓDULO ISOLADO: GESTÃO DA PLANILHA COMPLEMENTAR / RESULTADOS (.XLSX)
+        // =========================================================================
+        function renderExtraExcelList() {
+            const container = document.getElementById('container-extra-excel');
+            if (!container) return;
+
+            const selectedFarmKey = document.getElementById('sel-farm')?.value;
+            const selectedSafras = getSelectedSafras();
+
+            if (!selectedFarmKey || !selectedSafras.length) {
+                container.innerHTML = `<span class="text-slate-400 italic block text-[11px]">Selecione uma fazenda e safra.</span>`;
+                return;
+            }
+
+            const activeSafra = selectedSafras[0];
+            const foundExtra = extraExcelDatabase.find(ex => ex.farmId === selectedFarmKey && String(ex.safra) === String(activeSafra));
+
+            if (!foundExtra) {
+                container.innerHTML = `<span class="text-slate-400 italic block text-[11px]">Nenhuma planilha anexada para a Safra ${activeSafra}.</span>`;
+                return;
+            }
+
+            const isAdmin = currentUserRole === 'admin';
+
+            container.innerHTML = `
+                <div class="bg-white p-2 rounded-lg border border-blue-200 shadow-sm flex items-center justify-between gap-1">
+                    <div class="overflow-hidden">
+                        <span class="font-bold block text-blue-900 truncate text-[11px]">${foundExtra.fileName}</span>
+                        <span class="text-[10px] text-slate-500 block">Safra ${foundExtra.safra} | ${new Date(foundExtra.createdAt).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="downloadExtraExcel('${foundExtra.id}')" class="text-emerald-700 hover:text-emerald-900 p-1 font-bold text-xs" title="Baixar Planilha Original (.XLSX)"><i class="fa-solid fa-file-excel mr-1"></i>Baixar</button>
+                        ${isAdmin ? `<button onclick="deleteExtraExcel('${foundExtra.id}')" class="text-red-500 hover:text-red-700 p-1 text-xs" title="Excluir Planilha"><i class="fa-solid fa-trash"></i></button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function uploadExtraExcelFile(inputEl) {
+            if (!inputEl.files || !inputEl.files[0]) return;
+            const file = inputEl.files[0];
+
+            const selectedFarmKey = document.getElementById('sel-farm')?.value;
+            const selectedSafras = getSelectedSafras();
+
+            if (!selectedFarmKey || !selectedSafras.length) {
+                alert("Selecione uma fazenda e pelo menos uma safra ativa no menu antes de anexar a planilha!");
+                inputEl.value = '';
+                return;
+            }
+
+            const activeSafra = selectedSafras[0];
+            const farmInfo = farmsDatabase[selectedFarmKey];
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Content = e.target.result;
+
+                const docId = `${selectedFarmKey}_${activeSafra}_extra`;
+
+                const payload = {
+                    farmId: selectedFarmKey,
+                    farmName: farmInfo ? farmInfo.name : 'Fazenda',
+                    safra: activeSafra,
+                    fileName: file.name,
+                    fileData: base64Content,
+                    createdAt: new Date().toISOString()
+                };
+
+                try {
+                    await db.collection("extra_excels").doc(docId).set(payload, { merge: true });
+                    await loadCloudData();
+                    alert(`Planilha complementar "${file.name}" anexada com sucesso para a Safra ${activeSafra}!`);
+                    inputEl.value = '';
+                } catch (err) {
+                    console.error("Erro ao enviar planilha complementar:", err);
+                    alert("Falha ao salvar planilha na nuvem: " + err.message);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function downloadExtraExcel(docId) {
+            const foundExtra = extraExcelDatabase.find(ex => ex.id === docId);
+            if (!foundExtra || !foundExtra.fileData) {
+                alert("Arquivo da planilha não foi encontrado.");
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = foundExtra.fileData;
+            link.download = foundExtra.fileName || `Planilha_Complementar_Safra_${foundExtra.safra}.xlsx`;
+            link.click();
+        }
+
+        async function deleteExtraExcel(docId) {
+            if (currentUserRole !== 'admin') return;
+            if (confirm("Deseja realmente excluir esta planilha complementar do sistema?")) {
+                try {
+                    await db.collection("extra_excels").doc(docId).delete();
+                    await loadCloudData();
+                    alert("Planilha excluída com sucesso.");
+                } catch (err) {
+                    alert("Erro ao excluir planilha: " + err.message);
+                }
+            }
+        }
+
+        function renderSavedPrescriptionsList() {
+            const container = document.getElementById('container-saved-maps');
+            if (!container) return;
+
+            const selectedFarmKey = document.getElementById('sel-farm')?.value;
+            const selectedSafras = getSelectedSafras();
+
+            if (!selectedFarmKey || !selectedSafras.length) {
+                container.innerHTML = `<span class="text-slate-400 italic block text-[11px]">Selecione uma fazenda e safra.</span>`;
+                return;
+            }
+
+            const activeSafra = selectedSafras[0];
+            const filtered = savedPrescriptionsDatabase.filter(p => p.farmId === selectedFarmKey && String(p.safra) === String(activeSafra));
+
+            if (!filtered.length) {
+                container.innerHTML = `<span class="text-slate-400 italic block text-[11px]">Nenhum mapa salvo na Safra ${activeSafra}.</span>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(p => `
+                <div class="bg-white p-2 rounded-lg border border-indigo-100 shadow-sm flex items-center justify-between gap-1 hover:border-indigo-300">
+                    <div class="overflow-hidden">
+                        <span class="font-bold block text-slate-800 truncate text-[11px]">${p.title}</span>
+                        <span class="text-[10px] text-slate-500 block">${p.type === 'vrate' ? 'Fertilizantes TV' : 'Sementes TV'} | ${new Date(p.createdAt).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="downloadSavedPDF('${p.id}')" class="text-amber-600 hover:text-amber-800 p-1" title="Baixar Laudo PDF"><i class="fa-solid fa-file-pdf"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function downloadSavedPDF(prescrId) {
+            const p = savedPrescriptionsDatabase.find(item => item.id === prescrId);
+            if (!p || !p.pdfBase64) {
+                alert("Laudo PDF não encontrado para esta prescrição.");
+                return;
+            }
+            const link = document.createElement('a');
+            link.href = p.pdfBase64;
+            link.download = `Laudo_${p.title.replace(/\s+/g, '_')}_Safra_${p.safra}.pdf`;
+            link.click();
         }
 
         function initLeafletMap() {
@@ -1205,6 +2043,8 @@
 
         function changeBasemap() {
             if (!mapLeft || !mapRight) return;
+            const selectedType = document.getElementById('sel-basemap').value;
+
             if (tileLayerLeft) mapLeft.removeLayer(tileLayerLeft);
             if (tileLayerRight) mapRight.removeLayer(tileLayerRight);
 
@@ -1214,52 +2054,6 @@
             updateGISMap();
         }
 
-        function populateFarmSelector() {
-            const farmSelect = document.getElementById('sel-farm');
-            const vrateSelect = document.getElementById('vrate-sel-farm');
-            const seedsSelect = document.getElementById('seeds-sel-farm');
-
-            if (farmSelect) farmSelect.innerHTML = '';
-            if (vrateSelect) vrateSelect.innerHTML = '';
-            if (seedsSelect) seedsSelect.innerHTML = '';
-
-            let keysToDisplay = Object.keys(farmsDatabase);
-            if (!keysToDisplay.length) {
-                keysToDisplay = ['fazenda_demo'];
-                farmsDatabase['fazenda_demo'] = { name: "Fazenda Demonstração", producer: "Produtor Demo", location: "Lucas do Rio Verde - MT", area: 500, geojson: { type: "FeatureCollection", features: [] } };
-            }
-
-            keysToDisplay.forEach(key => {
-                if (farmsDatabase[key]) {
-                    const farm = farmsDatabase[key];
-                    if (farmSelect) farmSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
-                    if (vrateSelect) vrateSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
-                    if (seedsSelect) seedsSelect.innerHTML += `<option value="${key}">${farm.name} (${farm.area} Ha)</option>`;
-                }
-            });
-        }
-
-        function updateGISMap() {
-            console.log("Atualizando WebGIS...");
-        }
-
-        function switchTab(tab) {
-            ['maps', 'vrate', 'seeds', 'sampling', 'users'].forEach(t => {
-                const el = document.getElementById(`content-${t}`);
-                const btn = document.getElementById(`tab-${t}`);
-                if (el) el.classList.add('hidden');
-                if (btn) btn.classList.remove('bg-slate-800', 'text-white');
-            });
-
-            const activeContent = document.getElementById(`content-${tab}`);
-            const activeBtn = document.getElementById(`tab-${tab}`);
-            if (activeContent) activeContent.classList.remove('hidden');
-            if (activeBtn) activeBtn.classList.add('bg-slate-800', 'text-white');
-
-            if (tab === 'maps' && mapLeft) {
-                setTimeout(() => { mapLeft.invalidateSize(); }, 100);
-            }
-        }
         function getQGISRules(param) {
             if (param === 'S') {
                 return [
@@ -1574,6 +2368,9 @@
             }
         }
 
+        // =========================================================================
+        // MÓDULO DE TAXA VARIÁVEL DE FERTILIZANTES
+        // =========================================================================
         function initVRateMap() {
             if (!vrateMap) {
                 vrateMap = L.map('vrate-map').setView([-12.592, -58.012], 13);
@@ -1847,6 +2644,9 @@
             }
         }
 
+        // =========================================================================
+        // MÓDULO 3: PRESCRIÇÃO E TAXA VARIÁVEL DE SEMENTES
+        // =========================================================================
         function initSeedsMap() {
             if (!seedsMap) {
                 seedsMap = L.map('seeds-map').setView([-12.592, -58.012], 13);
@@ -3170,7 +3970,11 @@
             }
         }
 
+        // =========================================================================
+        // MÓDULO 4: LÓGICA DE INTEGRAÇÃO COM PLANILHA GOOGLE SHEETS
+        // =========================================================================
         let samplingRawRows = [];
+
         const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1txbBbeQrZEjEP2iJae0Wr66Q0977r4nfiQcDNx1WoZ4/export?format=csv&gid=819798624";
 
         async function fetchSamplingData() {
